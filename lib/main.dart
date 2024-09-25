@@ -35,8 +35,8 @@ class MyApp extends StatelessWidget {
         //
         // This works for code too, not just values: Most code changes can be
         // tested with just a hot reload.ddd
-        colorScheme: ColorScheme.fromSeed(
-            seedColor: Colors.deepPurple),
+        colorScheme:
+            ColorScheme.fromSeed(seedColor: Colors.red),
         useMaterial3: true,
       ),
       home: const MyHomePage(title: '새로운 앱 만들기'),
