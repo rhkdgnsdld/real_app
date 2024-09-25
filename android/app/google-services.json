@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1035623840699",
+    "project_id": "tutoringstudents09",
+    "storage_bucket": "tutoringstudents09.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1035623840699:android:65dea9c7874f0c3591229e",
+        "android_client_info": {
+          "package_name": "com.student.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBQzvpYJ_Vq7vbA6ov2k9CVsBaUiHQXEMo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
