@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:new_new_app/screens/login.dart';
 import 'firebase_options.dart';
-import 'package:new_new_app/screens/main.screen.dart';
+import 'package:new_new_app/screens/student_screen/home_screen/main.student.screen.dart';
+import 'package:new_new_app/utils/user_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -18,13 +20,13 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: '학생 앱',
+      title: '학생 관리 서비스',
       theme: ThemeData(
         primarySwatch: Colors.blue,
         visualDensity:
             VisualDensity.adaptivePlatformDensity,
       ),
-      home: const MainScreen(),
+      home: const LoginScreen(),
     );
   }
 }

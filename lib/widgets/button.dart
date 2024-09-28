@@ -82,12 +82,9 @@ class WideButton extends StatelessWidget {
           );
         },
         child: Center(
-          // 전체 내용을 Center 위젯으로 감쌌습니다
           child: Row(
-            mainAxisAlignment:
-                MainAxisAlignment.center, // 중앙 정렬로 변경
-            mainAxisSize:
-                MainAxisSize.min, // Row의 크기를 내용물에 맞춤
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
             children: [
               Icon(icon, size: 40, color: Colors.blue),
               const SizedBox(width: 16),
