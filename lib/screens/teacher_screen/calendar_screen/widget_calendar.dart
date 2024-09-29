@@ -36,12 +36,14 @@ Widget buildWeekDays() {
     height: 50,
     child: Row(
       children: weekDays
-          .map((day) => Expanded(
-                child: Center(
-                    child: Text(day,
-                        style: const TextStyle(
-                            fontWeight: FontWeight.bold))),
-              ))
+          .map(
+            (day) => Flexible(
+              child: Center(
+                  child: Text(day,
+                      style: const TextStyle(
+                          fontWeight: FontWeight.bold))),
+            ),
+          )
           .toList(),
     ),
   );
@@ -51,11 +53,11 @@ Widget buildTimeGrid() {
   return Row(
     children: [
       buildTimeColumn(),
-      Expanded(
+      Flexible(
         child: Row(
           children: List.generate(
               7,
-              (index) => Expanded(
+              (index) => Flexible(
                     child: buildDayColumn(),
                   )),
         ),

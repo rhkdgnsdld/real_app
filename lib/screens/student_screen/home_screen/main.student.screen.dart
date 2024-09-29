@@ -6,8 +6,8 @@ import 'material_screen.dart';
 import 'chat_screen.dart';
 import 'grades_screen.dart';
 import '../profile_screen/studentprofile_screen.dart';
-import 'package:new_new_app/screens/student_screen/calendar_screen/schedule_utils.dart';
 import 'package:new_new_app/widgets/button.dart'; // 달력 화면을 위한 import (아직 생성하지 않았다면 만들어야 합니다)
+import 'package:shared_preferences/shared_preferences.dart';
 
 class MainStudentScreen extends StatefulWidget {
   const MainStudentScreen({super.key});
@@ -59,8 +59,28 @@ class _MainStudentScreenState
   }
 }
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  String _StudentName = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadStudentName();
+  }
+
+  Future<void> _loadStudentName() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _StudentName = prefs.getString('studentName') ?? '학생';
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -69,13 +89,13 @@ class HomeScreen extends StatelessWidget {
         Container(
           padding: const EdgeInsets.all(16.0),
           color: Colors.blue,
-          child: const SafeArea(
+          child: SafeArea(
             bottom: false,
             child: Align(
               alignment: Alignment.centerLeft,
               child: Text(
-                '안녕하세요! 김현민 학생',
-                style: TextStyle(
+                '안녕하세요! $_StudentName 학생',
+                style: const TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
                   color: Colors.white,

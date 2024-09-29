@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class TeacherprofileScreen extends StatefulWidget {
   const TeacherprofileScreen({super.key});
@@ -14,7 +15,35 @@ class ProfileScreenState
   String _phoneNumber = '';
   String _connectedPerson = '';
 
-  bool _isDataSaved = false;
+  @override
+  void initState() {
+    super.initState();
+    _loadProfileDataT();
+  }
+
+  Future<void> _loadProfileDataT() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _name = prefs.getString('teacherName') ?? '';
+      _phoneNumber = prefs.getString('teacherPhone') ?? '';
+      _connectedPerson =
+          prefs.getString('connectedStudent') ?? '';
+    });
+  }
+
+  Future<void> _saveProfileT() async {
+    if (_formKey.currentState!.validate()) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('teacherName', _name);
+      await prefs.setString('teacherPhone', _phoneNumber);
+      await prefs.setString(
+          'connectedStudent', _connectedPerson);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('프로필이 저장되었습니다.')),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -41,59 +70,58 @@ class ProfileScreenState
           ),
           Expanded(
             child: SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Form(
-                  key: _formKey,
-                  child: Column(
-                    crossAxisAlignment:
-                        CrossAxisAlignment.stretch,
-                    children: [
-                      TextFormField(
-                        decoration: const InputDecoration(
-                          labelText: '이름',
-                          border: OutlineInputBorder(),
+              child: SingleChildScrollView(
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Form(
+                    key: _formKey,
+                    child: Column(
+                      crossAxisAlignment:
+                          CrossAxisAlignment.stretch,
+                      children: [
+                        TextFormField(
+                          decoration: const InputDecoration(
+                            labelText: '이름',
+                            border: OutlineInputBorder(),
+                          ),
+                          initialValue: _name,
+                          onChanged: (value) {
+                            setState(() {
+                              _name = value;
+                            });
+                          },
                         ),
-                        initialValue: _name,
-                        onChanged: (value) {
-                          setState(() {
-                            _name = value;
-                          });
-                        },
-                      ),
-                      const SizedBox(height: 16),
-                      TextFormField(
-                        decoration: const InputDecoration(
-                          labelText: '전화번호',
-                          border: OutlineInputBorder(),
+                        const SizedBox(height: 16),
+                        TextFormField(
+                          decoration: const InputDecoration(
+                            labelText: '전화번호',
+                            border: OutlineInputBorder(),
+                          ),
+                          initialValue: _phoneNumber,
+                          keyboardType: TextInputType.phone,
+                          onChanged: (value) =>
+                              _phoneNumber = value,
                         ),
-                        initialValue: _phoneNumber,
-                        keyboardType: TextInputType.phone,
-                        onChanged: (value) =>
-                            _phoneNumber = value,
-                      ),
-                      const SizedBox(height: 16),
-                      TextFormField(
-                        decoration: const InputDecoration(
-                          labelText: '연동되는 선생님',
-                          border: OutlineInputBorder(),
+                        const SizedBox(height: 16),
+                        TextFormField(
+                          decoration: const InputDecoration(
+                            labelText: '연동되는 학생',
+                            border: OutlineInputBorder(),
+                          ),
+                          initialValue: _connectedPerson,
+                          onChanged: (value) =>
+                              _connectedPerson = value,
                         ),
-                        initialValue: _connectedPerson,
-                        onChanged: (value) =>
-                            _connectedPerson = value,
-                      ),
-                      const SizedBox(height: 24),
-                      ElevatedButton(
-                        onPressed: _saveProfile,
-                        child: const Text('저장'),
-                      ),
-                      if (_isDataSaved) ...[
+                        const SizedBox(height: 24),
+                        ElevatedButton(
+                          onPressed: _saveProfileT,
+                          child: const Text('저장'),
+                        ),
                         const SizedBox(height: 24),
                         Container(
                           padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
-                            color: Colors.black
-                                .withOpacity(0.5),
+                            color: Colors.grey[300],
                             borderRadius:
                                 BorderRadius.circular(8),
                           ),
@@ -101,23 +129,17 @@ class ProfileScreenState
                             crossAxisAlignment:
                                 CrossAxisAlignment.start,
                             children: [
-                              Text('이름: $_name',
-                                  style: const TextStyle(
-                                      color: Colors.white)),
+                              Text('이름: $_name'),
                               const SizedBox(height: 8),
-                              Text('전화번호: $_phoneNumber',
-                                  style: const TextStyle(
-                                      color: Colors.white)),
+                              Text('전화번호: $_phoneNumber'),
                               const SizedBox(height: 8),
                               Text(
-                                  '연동되는 학생: $_connectedPerson',
-                                  style: const TextStyle(
-                                      color: Colors.white)),
+                                  '연동되는 학생: $_connectedPerson'),
                             ],
                           ),
                         ),
                       ],
-                    ],
+                    ),
                   ),
                 ),
               ),
@@ -126,16 +148,5 @@ class ProfileScreenState
         ],
       ),
     );
-  }
-
-  void _saveProfile() {
-    if (_formKey.currentState!.validate()) {
-      setState(() {
-        _isDataSaved = true;
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('프로필이 저장되었습니다.')),
-      );
-    }
   }
 }

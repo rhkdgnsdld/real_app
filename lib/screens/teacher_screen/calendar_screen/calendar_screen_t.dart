@@ -10,7 +10,7 @@ class WeeklyScheduleScreen extends StatelessWidget {
       body: Column(
         children: [
           buildHeader(),
-          Expanded(
+          Flexible(
             child: SingleChildScrollView(
               child: Column(
                 children: [
