@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:new_new_app/screens/teacher_screen/home_screen/logic.dart';
 import 'assignment_screen_t.dart';
 import 'attendance_screen_t.dart';
 import 'material_screen_t.dart';
@@ -7,6 +8,7 @@ import 'grades_screen_t.dart';
 import 'package:new_new_app/widgets/button.dart';
 import '../profile_screen/teacherprofile_screen.dart';
 import '../calendar_screen/calendar_screen_t.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class MainTeacherScreen extends StatefulWidget {
   const MainTeacherScreen({super.key});
@@ -58,8 +60,29 @@ class _MainTeacherScreenState
   }
 }
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  String _TeacherName = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadTeacherName();
+  }
+
+  Future<void> _loadTeacherName() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _TeacherName =
+          prefs.getString('teacherName') ?? '선생님';
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -68,13 +91,13 @@ class HomeScreen extends StatelessWidget {
         Container(
           padding: const EdgeInsets.all(16.0),
           color: Colors.blue,
-          child: const SafeArea(
+          child: SafeArea(
             bottom: false,
             child: Align(
               alignment: Alignment.centerLeft,
               child: Text(
-                '안녕하세요! 강광훈 선생님',
-                style: TextStyle(
+                '안녕하세요!, $_TeacherName 선생님',
+                style: const TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
                   color: Colors.white,
@@ -128,7 +151,7 @@ class HomeScreen extends StatelessWidget {
                   child: WideButton(
                       text: '성적 누적 추이 확인',
                       icon: Icons.trending_up,
-                      screen: GradesScreen()),
+                      screen: GradeTrendScreen()),
                 ),
               ],
             ),

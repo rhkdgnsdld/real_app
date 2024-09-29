@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'widget_calendar.dart';
+import 'widget_calendar.s.dart';
 
 class WeeklyScheduleScreenS extends StatelessWidget {
   const WeeklyScheduleScreenS({super.key});
