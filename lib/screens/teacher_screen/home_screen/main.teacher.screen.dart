@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:new_new_app/screens/teacher_screen/home_screen/logic.dart';
+
 import 'assignment_screen_t.dart';
 import 'attendance_screen_t.dart';
 import 'material_screen_t.dart';
 import 'chat_screen_t.dart';
-import 'grades_screen_t.dart';
+import 'grades.dart';
 import 'package:new_new_app/widgets/button.dart';
 import '../profile_screen/teacherprofile_screen.dart';
 import '../calendar_screen/calendar_screen_t.dart';
@@ -96,7 +96,7 @@ class _HomeScreenState extends State<HomeScreen> {
             child: Align(
               alignment: Alignment.centerLeft,
               child: Text(
-                '안녕하세요!, $_TeacherName 선생님',
+                '안녕하세요! $_TeacherName 선생님',
                 style: const TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
@@ -151,7 +151,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: WideButton(
                       text: '성적 누적 추이 확인',
                       icon: Icons.trending_up,
-                      screen: GradeTrendScreen()),
+                      screen: GradeTrendScreenT()),
                 ),
               ],
             ),

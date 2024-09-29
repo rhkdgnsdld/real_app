@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:new_new_app/screens/student_screen/calendar_screen/schedule_screen_s..dart';
+import 'package:new_new_app/screens/student_screen/calendar_screen/calendar_screen.dart';
 import 'assignment_screen.dart';
 import 'attendance_screen.dart';
 import 'material_screen.dart';
 import 'chat_screen.dart';
-import 'grades_screen.dart';
+import 'package:new_new_app/screens/student_screen/home_screen/grade_screen/grade_data.dart';
 import '../profile_screen/studentprofile_screen.dart';
-import 'package:new_new_app/widgets/button.dart'; // 달력 화면을 위한 import (아직 생성하지 않았다면 만들어야 합니다)
+import 'package:new_new_app/widgets/button.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class MainStudentScreen extends StatefulWidget {
@@ -23,7 +23,7 @@ class _MainStudentScreenState
 
   final List<Widget> _children = [
     const HomeScreen(),
-    const WeeklyScheduleScreenS(),
+    const TimetableScreen(),
     const StudentprofileScreen(),
   ];
 
@@ -149,7 +149,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: WideButton(
                       text: '성적 누적 추이 확인',
                       icon: Icons.trending_up,
-                      screen: GradesScreen()),
+                      screen: GradeTrendScreen()),
                 ),
               ],
             ),

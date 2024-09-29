@@ -23,6 +23,9 @@ class CustomButton extends StatelessWidget {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
+          elevation: 10, // 그림자의 크기를 증가
+          shadowColor:
+              Colors.black.withOpacity(0.8), // 그림자 색상을 조절
         ),
         onPressed: () {
           Navigator.push(
@@ -74,6 +77,8 @@ class WideButton extends StatelessWidget {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
+          elevation: 10, // 그림자의 크기를 증가
+          shadowColor: Colors.black.withOpacity(0.8),
         ),
         onPressed: () {
           Navigator.push(

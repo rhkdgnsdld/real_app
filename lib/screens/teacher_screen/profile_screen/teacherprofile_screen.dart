@@ -99,8 +99,11 @@ class ProfileScreenState
                           ),
                           initialValue: _phoneNumber,
                           keyboardType: TextInputType.phone,
-                          onChanged: (value) =>
-                              _phoneNumber = value,
+                          onChanged: (value) {
+                            setState(() {
+                              _phoneNumber = value;
+                            });
+                          },
                         ),
                         const SizedBox(height: 16),
                         TextFormField(
@@ -109,8 +112,11 @@ class ProfileScreenState
                             border: OutlineInputBorder(),
                           ),
                           initialValue: _connectedPerson,
-                          onChanged: (value) =>
-                              _connectedPerson = value,
+                          onChanged: (value) {
+                            setState(() {
+                              _connectedPerson = value;
+                            });
+                          },
                         ),
                         const SizedBox(height: 24),
                         ElevatedButton(
