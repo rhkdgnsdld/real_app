@@ -7,7 +7,8 @@ import 'chat_screen_t.dart';
 import 'grades.dart';
 import 'package:new_new_app/widgets/button.dart';
 import '../profile_screen/teacherprofile_screen.dart';
-import '../calendar_screen/calendar_screen_t.dart';
+import '../calendar_screen/widget_calendar.dart';
+
 import 'package:shared_preferences/shared_preferences.dart';
 
 class MainTeacherScreen extends StatefulWidget {
@@ -118,13 +119,14 @@ class _HomeScreenState extends State<HomeScreen> {
                           child: CustomButton(
                               text: '과제 부여하기',
                               icon: Icons.assignment,
-                              screen: AssignmentScreen())),
+                              screen:
+                                  WeeklyAssignmentScreen())),
                       SizedBox(width: 16),
                       Expanded(
                           child: CustomButton(
                               text: '출결 확인하기',
                               icon: Icons.check_circle,
-                              screen: AttendanceScreen())),
+                              screen: AttendanceScreenT())),
                     ],
                   ),
                 ),
@@ -136,7 +138,8 @@ class _HomeScreenState extends State<HomeScreen> {
                           child: CustomButton(
                               text: '수업 자료 업로드하기',
                               icon: Icons.book,
-                              screen: MaterialsScreen())),
+                              screen:
+                                  TeacherFileUploadScreen())),
                       SizedBox(width: 16),
                       Expanded(
                           child: CustomButton(

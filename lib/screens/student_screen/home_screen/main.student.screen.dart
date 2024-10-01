@@ -104,29 +104,30 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
         ),
-        const Expanded(
+        Expanded(
           child: Padding(
-            padding: EdgeInsets.all(16.0),
+            padding: const EdgeInsets.all(16.0),
             child: Column(
               children: <Widget>[
-                Expanded(
+                const Expanded(
                   child: Row(
                     children: [
                       Expanded(
                           child: CustomButton(
                               text: '이번주의 과제',
                               icon: Icons.assignment,
-                              screen: AssignmentScreen())),
+                              screen:
+                                  StudentWeeklyAssignmentScreen())),
                       SizedBox(width: 16),
                       Expanded(
                           child: CustomButton(
                               text: '출결 확인하기',
                               icon: Icons.check_circle,
-                              screen: AttendanceScreen())),
+                              screen: AttendanceScreenS())),
                     ],
                   ),
                 ),
-                SizedBox(height: 16),
+                const SizedBox(height: 16),
                 Expanded(
                   child: Row(
                     children: [
@@ -134,9 +135,10 @@ class _HomeScreenState extends State<HomeScreen> {
                           child: CustomButton(
                               text: '수업 자료 확인하기',
                               icon: Icons.book,
-                              screen: MaterialsScreen())),
-                      SizedBox(width: 16),
-                      Expanded(
+                              screen:
+                                  StudentFileListScreen())),
+                      const SizedBox(width: 16),
+                      const Expanded(
                           child: CustomButton(
                               text: '선생님과의 대화',
                               icon: Icons.chat,
@@ -144,8 +146,8 @@ class _HomeScreenState extends State<HomeScreen> {
                     ],
                   ),
                 ),
-                SizedBox(height: 16),
-                Expanded(
+                const SizedBox(height: 16),
+                const Expanded(
                   child: WideButton(
                       text: '성적 누적 추이 확인',
                       icon: Icons.trending_up,
