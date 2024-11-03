@@ -8,6 +8,7 @@ import 'package:new_new_app/screens/student_screen/home_screen/grade_screen/grad
 import '../profile_screen/studentprofile_screen.dart';
 import 'package:new_new_app/widgets/button.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'timer_screen.dart';
 
 class MainStudentScreen extends StatefulWidget {
   const MainStudentScreen({super.key});
@@ -23,7 +24,7 @@ class _MainStudentScreenState
 
   final List<Widget> _children = [
     const HomeScreen(),
-    const TimetableScreen(),
+    const ScheduleView(),
     const StudentprofileScreen(),
   ];
 
@@ -91,25 +92,44 @@ class _HomeScreenState extends State<HomeScreen> {
           color: Colors.blue,
           child: SafeArea(
             bottom: false,
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                '안녕하세요! $_StudentName 학생',
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
+            child: Row(
+              mainAxisAlignment:
+                  MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  '안녕하세요! $_StudentName 학생',
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
                 ),
-              ),
+                IconButton(
+                  icon: const Icon(
+                    Icons.timer,
+                    color: Colors.white,
+                    size: 28,
+                  ),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) =>
+                            const TimerScreen(),
+                      ),
+                    );
+                  },
+                ),
+              ],
             ),
           ),
         ),
-        Expanded(
+        const Expanded(
           child: Padding(
-            padding: const EdgeInsets.all(16.0),
+            padding: EdgeInsets.all(16.0),
             child: Column(
               children: <Widget>[
-                const Expanded(
+                Expanded(
                   child: Row(
                     children: [
                       Expanded(
@@ -127,7 +147,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     ],
                   ),
                 ),
-                const SizedBox(height: 16),
+                SizedBox(height: 16),
                 Expanded(
                   child: Row(
                     children: [
@@ -137,8 +157,8 @@ class _HomeScreenState extends State<HomeScreen> {
                               icon: Icons.book,
                               screen:
                                   StudentFileListScreen())),
-                      const SizedBox(width: 16),
-                      const Expanded(
+                      SizedBox(width: 16),
+                      Expanded(
                           child: CustomButton(
                               text: '선생님과의 대화',
                               icon: Icons.chat,
@@ -146,8 +166,8 @@ class _HomeScreenState extends State<HomeScreen> {
                     ],
                   ),
                 ),
-                const SizedBox(height: 16),
-                const Expanded(
+                SizedBox(height: 16),
+                Expanded(
                   child: WideButton(
                       text: '성적 누적 추이 확인',
                       icon: Icons.trending_up,

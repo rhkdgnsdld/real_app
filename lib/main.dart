@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:new_new_app/screens/login.screen.dart';
+import 'package:new_new_app/screens/signup.dart';
+import 'package:new_new_app/screens/student_screen/home_screen/main.student.screen.dart';
+import 'package:new_new_app/screens/teacher_screen/home_screen/main.teacher.screen.dart';
 
 import 'firebase_options.dart';
 import 'package:new_new_app/screens/login.dart';
@@ -27,7 +31,13 @@ class MyApp extends StatelessWidget {
         visualDensity:
             VisualDensity.adaptivePlatformDensity,
       ),
-      home: const LoginScreen(),
+      initialRoute: '/login', // 시작 화면
+      routes: {
+        '/login': (context) => const LoginScreenR(),
+        '/signup': (context) => const SignUpPage(),
+        '/teacher': (context) => const MainTeacherScreen(),
+        '/student': (context) => const MainStudentScreen(),
+      },
     );
   }
 }

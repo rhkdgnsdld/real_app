@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class StudentprofileScreen extends StatefulWidget {
   const StudentprofileScreen({super.key});
@@ -10,10 +12,11 @@ class StudentprofileScreen extends StatefulWidget {
 
 class ProfileScreenState
     extends State<StudentprofileScreen> {
+  String? _userId;
   final _formKey = GlobalKey<FormState>();
   String _name = '';
   String _phoneNumber = '';
-  String _connectedPerson = '';
+  final String _connectedPerson = '';
 
   @override
   void initState() {
@@ -22,26 +25,40 @@ class ProfileScreenState
   }
 
   Future<void> _loadProfileData() async {
-    final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      _name = prefs.getString('studentName') ?? '';
-      _phoneNumber = prefs.getString('studentPhone') ?? '';
-      _connectedPerson =
-          prefs.getString('connectedTeacher') ?? '';
-    });
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser != null) {
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(currentUser.uid)
+          .get();
+
+      if (userDoc.exists) {
+        setState(() {
+          _userId = userDoc.data()?['userId'] ?? '';
+          _name = userDoc.data()?['name'] ?? '';
+          _phoneNumber =
+              userDoc.data()?['phoneNumber'] ?? '';
+        });
+      }
+    }
   }
 
   Future<void> _saveProfile() async {
     if (_formKey.currentState!.validate()) {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('studentName', _name);
-      await prefs.setString('studentPhone', _phoneNumber);
-      await prefs.setString(
-          'connectedTeacher', _connectedPerson);
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser != null) {
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(currentUser.uid)
+            .update({
+          'name': _name,
+          'phoneNumber': _phoneNumber,
+        });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('프로필이 저장되었습니다.')),
-      );
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('프로필이 저장되었습니다.')),
+        );
+      }
     }
   }
 
@@ -102,16 +119,6 @@ class ProfileScreenState
                           onChanged: (value) =>
                               _phoneNumber = value,
                         ),
-                        const SizedBox(height: 16),
-                        TextFormField(
-                          decoration: const InputDecoration(
-                            labelText: '연동되는 선생님',
-                            border: OutlineInputBorder(),
-                          ),
-                          initialValue: _connectedPerson,
-                          onChanged: (value) =>
-                              _connectedPerson = value,
-                        ),
                         const SizedBox(height: 24),
                         ElevatedButton(
                           onPressed: _saveProfile,
@@ -132,11 +139,115 @@ class ProfileScreenState
                               Text('이름: $_name'),
                               const SizedBox(height: 8),
                               Text('전화번호: $_phoneNumber'),
-                              const SizedBox(height: 8),
-                              Text(
-                                  '연동되는 선생님: $_connectedPerson'),
                             ],
                           ),
+                        ),
+                        // 연동 상태 StreamBuilder 추가
+                        StreamBuilder<QuerySnapshot>(
+                          stream: FirebaseFirestore.instance
+                              .collection('connections')
+                              .where('studentId',
+                                  isEqualTo: _userId)
+                              .snapshots(),
+                          builder: (context, snapshot) {
+                            if (!snapshot.hasData) {
+                              return Container();
+                            }
+
+                            final connections =
+                                snapshot.data!.docs;
+                            return Column(
+                              children: [
+                                // 승인된 연동 표시
+                                ...connections
+                                    .where((doc) =>
+                                        doc['status'] ==
+                                        'accepted')
+                                    .map((doc) {
+                                  final data = doc.data()
+                                      as Map<String,
+                                          dynamic>;
+                                  return Container(
+                                    margin: const EdgeInsets
+                                        .only(top: 16),
+                                    padding:
+                                        const EdgeInsets
+                                            .all(16),
+                                    decoration:
+                                        BoxDecoration(
+                                      color:
+                                          Colors.green[100],
+                                      borderRadius:
+                                          BorderRadius
+                                              .circular(8),
+                                    ),
+                                    child: Text(
+                                        '${data['teacherName']} 선생님과 연동되어 있습니다'),
+                                  );
+                                }),
+                                // 대기중인 연동 요청 표시
+                                ...connections
+                                    .where((doc) =>
+                                        doc['status'] ==
+                                        'pending')
+                                    .map((doc) {
+                                  final data = doc.data()
+                                      as Map<String,
+                                          dynamic>;
+                                  return Container(
+                                    margin: const EdgeInsets
+                                        .only(top: 16),
+                                    padding:
+                                        const EdgeInsets
+                                            .all(16),
+                                    decoration:
+                                        BoxDecoration(
+                                      color: Colors
+                                          .yellow[100],
+                                      borderRadius:
+                                          BorderRadius
+                                              .circular(8),
+                                    ),
+                                    child: Column(
+                                      children: [
+                                        Text(
+                                            '${data['teacherName']} 선생님이 연동을 요청하였습니다'),
+                                        Row(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment
+                                                  .end,
+                                          children: [
+                                            TextButton(
+                                              onPressed: () => doc
+                                                  .reference
+                                                  .update({
+                                                'status':
+                                                    'rejected'
+                                              }),
+                                              child:
+                                                  const Text(
+                                                      '거절'),
+                                            ),
+                                            TextButton(
+                                              onPressed: () => doc
+                                                  .reference
+                                                  .update({
+                                                'status':
+                                                    'accepted'
+                                              }),
+                                              child:
+                                                  const Text(
+                                                      '수락'),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                }),
+                              ],
+                            );
+                          },
                         ),
                       ],
                     ),

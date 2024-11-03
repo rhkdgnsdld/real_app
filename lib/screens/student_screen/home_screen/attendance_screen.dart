@@ -4,6 +4,8 @@ import 'package:intl/intl.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 enum AttendanceStatus { present, absent, cancelled, makeup }
 
@@ -17,29 +19,90 @@ class AttendanceScreenS extends StatefulWidget {
 
 class _StudentAttendanceCalendarState
     extends State<AttendanceScreenS> {
-  late SharedPreferences prefs;
   DateTime _focusedDay = DateTime.now();
   DateTime? _selectedDay;
   Map<DateTime, AttendanceStatus> _attendanceMap = {};
+  String? _connectedTeacherId;
 
   @override
   void initState() {
     super.initState();
-    _loadAttendanceData();
+    _loadConnectedTeacher();
+    initializeDateFormatting(
+        'ko_KR', null); // 한국어 날짜 형식을 위해 추가
   }
 
-  void _loadAttendanceData() async {
-    prefs = await SharedPreferences.getInstance();
-    String? attendanceJson =
-        prefs.getString('attendance_data');
-    if (attendanceJson != null) {
-      Map<String, dynamic> decodedMap =
-          json.decode(attendanceJson);
+  Future<void> _loadConnectedTeacher() async {
+    try {
+      final currentUser = FirebaseAuth.instance.currentUser;
+      print(
+          'Current User ID: ${currentUser?.uid}'); // 현재 사용자 ID 확인
+
+      if (currentUser != null) {
+        final connection = await FirebaseFirestore.instance
+            .collection('connections')
+            .where('studentId', isEqualTo: currentUser.uid)
+            .where('status', isEqualTo: 'accepted')
+            .get();
+
+        print(
+            'Found Connections: ${connection.docs.length}'); // 연결 수 확인
+
+        if (connection.docs.isNotEmpty) {
+          final teacherId =
+              connection.docs.first.data()['teacherId'];
+          print(
+              'Found Teacher ID: $teacherId'); // 선생님 ID 확인
+
+          setState(() {
+            _connectedTeacherId = teacherId;
+          });
+
+          await _loadAttendanceData();
+        } else {
+          print('No connected teacher found');
+        }
+      }
+    } catch (e) {
+      print('Error in _loadConnectedTeacher: $e');
+    }
+  }
+
+  Future<void> _loadAttendanceData() async {
+    try {
+      print(
+          'Loading attendance for teacher: $_connectedTeacherId');
+
+      final snapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(_connectedTeacherId)
+          .collection('attendance')
+          .get();
+
+      print(
+          'Found ${snapshot.docs.length} attendance records');
+
+      final newAttendanceMap =
+          <DateTime, AttendanceStatus>{};
+
+      for (var doc in snapshot.docs) {
+        try {
+          final date = DateTime.parse(doc.id);
+          final statusIndex = doc.data()['status'] as int;
+          newAttendanceMap[date] =
+              AttendanceStatus.values[statusIndex];
+          print(
+              'Added attendance for ${doc.id}: ${AttendanceStatus.values[statusIndex]}');
+        } catch (e) {
+          print('Error parsing attendance record: $e');
+        }
+      }
+
       setState(() {
-        _attendanceMap = decodedMap.map((key, value) =>
-            MapEntry(DateTime.parse(key),
-                AttendanceStatus.values[value]));
+        _attendanceMap = newAttendanceMap;
       });
+    } catch (e) {
+      print('Error in _loadAttendanceData: $e');
     }
   }
 
@@ -47,70 +110,82 @@ class _StudentAttendanceCalendarState
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('학생 출석 현황')),
-      body: Column(
-        children: [
-          _buildMonthlyAttendanceSummary(),
-          Expanded(
-            child: TableCalendar(
-              firstDay: DateTime.utc(2021, 1, 1),
-              lastDay: DateTime.utc(2030, 12, 31),
-              focusedDay: _focusedDay,
-              calendarFormat: CalendarFormat.month,
-              selectedDayPredicate: (day) =>
-                  isSameDay(_selectedDay, day),
-              onDaySelected: (
-                selectedDay,
-                focusedDay,
-              ) {
-                setState(() {
-                  _selectedDay = selectedDay;
-                  _focusedDay = focusedDay;
-                });
-                _showAttendanceInfo(selectedDay);
-              },
-              onPageChanged: (focusedDay) {
-                setState(() {
-                  _focusedDay = focusedDay;
-                });
-              },
-              calendarStyle: CalendarStyle(
-                weekendTextStyle:
-                    const TextStyle(color: Colors.red),
-                holidayTextStyle:
-                    TextStyle(color: Colors.blue[800]),
-              ),
-              calendarBuilders: CalendarBuilders(
-                markerBuilder: (context, date, events) {
-                  if (_attendanceMap.containsKey(date)) {
-                    return Container(
-                      margin: const EdgeInsets.all(4.0),
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: _getColorForStatus(
-                            _attendanceMap[date]!),
+      body: SingleChildScrollView(
+        // 이 부분 추가
+        child: Column(
+          children: [
+            _buildMonthlyAttendanceSummary(),
+            SizedBox(
+              // TableCalendar를 Container로 감싸기
+              height: MediaQuery.of(context).size.height *
+                  0.6, // 화면 높이의 60%
+              child: _connectedTeacherId == null
+                  ? const Center(
+                      child: Text('연동된 선생님이 없습니다.'))
+                  : TableCalendar(
+                      firstDay: DateTime.utc(2021, 1, 1),
+                      lastDay: DateTime.utc(2030, 12, 31),
+                      focusedDay: _focusedDay,
+                      calendarFormat: CalendarFormat.month,
+                      selectedDayPredicate: (day) =>
+                          isSameDay(_selectedDay, day),
+                      onDaySelected:
+                          (selectedDay, focusedDay) {
+                        setState(() {
+                          _selectedDay = selectedDay;
+                          _focusedDay = focusedDay;
+                        });
+                        _showAttendanceInfo(selectedDay);
+                      },
+                      onPageChanged: (focusedDay) {
+                        setState(() {
+                          _focusedDay = focusedDay;
+                        });
+                      },
+                      calendarStyle: CalendarStyle(
+                        weekendTextStyle: const TextStyle(
+                            color: Colors.red),
+                        holidayTextStyle: TextStyle(
+                            color: Colors.blue[800]),
                       ),
-                      width: 40,
-                      height: 40,
-                      child: Text(
-                        date.day.toString(),
-                        style: const TextStyle(
-                            color: Colors.white),
+                      calendarBuilders: CalendarBuilders(
+                        markerBuilder:
+                            (context, date, events) {
+                          if (_attendanceMap
+                              .containsKey(date)) {
+                            return Container(
+                              margin:
+                                  const EdgeInsets.all(4.0),
+                              alignment: Alignment.center,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: _getColorForStatus(
+                                    _attendanceMap[date]!),
+                              ),
+                              width: 40,
+                              height: 40,
+                              child: Text(
+                                date.day.toString(),
+                                style: const TextStyle(
+                                    color: Colors.white),
+                              ),
+                            );
+                          }
+                          return null;
+                        },
                       ),
-                    );
-                  }
-                  return null;
-                },
-              ),
-              headerStyle: HeaderStyle(
-                formatButtonVisible: false,
-                titleCentered: true,
-                titleTextFormatter: (date, locale) =>
-                    DateFormat.yMMMM('ko_KR').format(date),
-              ),
+                      headerStyle: HeaderStyle(
+                        formatButtonVisible: false,
+                        titleCentered: true,
+                        titleTextFormatter:
+                            (date, locale) =>
+                                DateFormat.yMMMM('ko_KR')
+                                    .format(date),
+                      ),
+                    ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

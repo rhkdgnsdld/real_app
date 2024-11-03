@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class StudentWeeklyAssignmentScreen extends StatefulWidget {
   const StudentWeeklyAssignmentScreen({super.key});
@@ -14,6 +16,14 @@ class _StudentWeeklyAssignmentScreenState
     extends State<StudentWeeklyAssignmentScreen> {
   late DateTime _currentWeek;
   List<Map<String, dynamic>> _assignments = [];
+  String? _connectedTeacherId;
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeCurrentWeek();
+    _loadConnectedTeacher();
+  }
 
   // 파스텔 색상 정의
   final Color pastelBlue = Colors.white;
@@ -21,15 +31,26 @@ class _StudentWeeklyAssignmentScreenState
   final Color pastelPink = Colors.blue;
   final Color pastelYellow = const Color(0xFFAED6F1);
 
-  @override
-  void initState() {
-    super.initState();
-    _initializeCurrentWeek();
-  }
-
   void _initializeCurrentWeek() {
     _currentWeek = _getWeekStartDate(DateTime.now());
     _loadAssignments();
+  }
+
+  Future<void> _loadConnectedTeacher() async {
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser != null) {
+      final connection = await FirebaseFirestore.instance
+          .collection('connections')
+          .where('studentId', isEqualTo: currentUser.uid)
+          .where('status', isEqualTo: 'accepted')
+          .get();
+
+      if (connection.docs.isNotEmpty) {
+        _connectedTeacherId =
+            connection.docs.first.data()['teacherId'];
+        _loadAssignments();
+      }
+    }
   }
 
   @override
@@ -160,23 +181,34 @@ class _StudentWeeklyAssignmentScreenState
   }
 
   void _loadAssignments() async {
-    final prefs = await SharedPreferences.getInstance();
-    String weekKey =
+    final weekKey =
         DateFormat('yyyy-MM-dd').format(_currentWeek);
-    List<String>? savedAssignments =
-        prefs.getStringList(weekKey);
-    setState(() {
-      if (savedAssignments != null) {
-        _assignments = savedAssignments
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) return;
+
+    final snapshot = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(currentUser.uid)
+        .collection('assignments')
+        .doc(weekKey)
+        .get();
+
+    if (snapshot.exists) {
+      final assignmentList = List<String>.from(
+          snapshot.data()?['assignments'] ?? []);
+      setState(() {
+        _assignments = assignmentList
             .map((assignment) => {
                   'content': assignment,
                   'completed': false,
                 })
             .toList();
-      } else {
+      });
+    } else {
+      setState(() {
         _assignments = [];
-      }
-    });
+      });
+    }
   }
 
   void _saveAssignments() async {
@@ -190,10 +222,26 @@ class _StudentWeeklyAssignmentScreenState
     await prefs.setStringList(weekKey, assignmentsToSave);
   }
 
-  void _toggleAssignment(int index) {
+  void _toggleAssignment(int index) async {
     setState(() {
       _assignments[index]['completed'] =
           !_assignments[index]['completed'];
+    });
+
+    // 완료 상태를 Firebase에 저장
+    final weekKey =
+        DateFormat('yyyy-MM-dd').format(_currentWeek);
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) return;
+
+    await FirebaseFirestore.instance
+        .collection('users')
+        .doc(currentUser.uid)
+        .collection('assignments')
+        .doc(weekKey)
+        .update({
+      'completionStatus':
+          _assignments.map((a) => a['completed']).toList(),
     });
   }
 }

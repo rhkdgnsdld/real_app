@@ -4,6 +4,8 @@ import 'package:intl/intl.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 enum AttendanceStatus { present, absent, cancelled, makeup }
 
@@ -17,7 +19,7 @@ class AttendanceScreenT extends StatefulWidget {
 
 class _AttendanceCalendarState
     extends State<AttendanceScreenT> {
-  late SharedPreferences prefs;
+  late String currentUserId;
   DateTime _focusedDay = DateTime.now();
   DateTime? _selectedDay;
   Map<DateTime, AttendanceStatus> _attendanceMap = {};
@@ -25,30 +27,47 @@ class _AttendanceCalendarState
   @override
   void initState() {
     super.initState();
+    currentUserId = FirebaseAuth.instance.currentUser!.uid;
     _loadAttendanceData();
   }
 
   void _loadAttendanceData() async {
-    prefs = await SharedPreferences.getInstance();
-    String? attendanceJson =
-        prefs.getString('attendance_data');
-    if (attendanceJson != null) {
-      Map<String, dynamic> decodedMap =
-          json.decode(attendanceJson);
-      setState(() {
-        _attendanceMap = decodedMap.map((key, value) =>
-            MapEntry(DateTime.parse(key),
-                AttendanceStatus.values[value]));
-      });
-    }
+    final snapshot = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(currentUserId)
+        .collection('attendance')
+        .get();
+
+    setState(() {
+      _attendanceMap = {};
+      for (var doc in snapshot.docs) {
+        _attendanceMap[DateTime.parse(doc.id)] =
+            AttendanceStatus.values[doc.data()['status']];
+      }
+    });
   }
 
-  void _saveAttendanceData() async {
-    Map<String, dynamic> encodedMap = _attendanceMap.map(
-        (key, value) =>
-            MapEntry(key.toIso8601String(), value.index));
-    await prefs.setString(
-        'attendance_data', json.encode(encodedMap));
+  void _saveAttendanceData(
+      DateTime date, AttendanceStatus status) async {
+    await FirebaseFirestore.instance
+        .collection('users')
+        .doc(currentUserId)
+        .collection('attendance')
+        .doc(date.toIso8601String())
+        .set({
+      'status': status.index,
+      'date': date,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  void _deleteAttendanceData(DateTime date) async {
+    await FirebaseFirestore.instance
+        .collection('users')
+        .doc(currentUserId)
+        .collection('attendance')
+        .doc(date.toIso8601String())
+        .delete();
   }
 
   @override
@@ -221,7 +240,8 @@ class _AttendanceCalendarState
                   onTap: () {
                     setState(() {
                       _attendanceMap[day] = status;
-                      _saveAttendanceData();
+                      _saveAttendanceData(
+                          day, status); // Firebase에 저장
                     });
                     Navigator.of(context).pop();
                   },
@@ -235,7 +255,8 @@ class _AttendanceCalendarState
                 onTap: () {
                   setState(() {
                     _attendanceMap.remove(day);
-                    _saveAttendanceData();
+                    _deleteAttendanceData(
+                        day); // Firebase에서 삭제
                   });
                   Navigator.of(context).pop();
                 },

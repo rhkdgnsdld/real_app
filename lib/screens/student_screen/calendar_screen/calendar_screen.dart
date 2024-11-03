@@ -1,224 +1,260 @@
-import 'dart:math';
 import 'package:flutter/material.dart';
-import 'package:flutter_timetable/flutter_timetable.dart';
-import 'package:intl/intl.dart';
+import 'dart:math';
 
-class TimetableScreen extends StatelessWidget {
-  const TimetableScreen({super.key});
+class ScheduleView extends StatefulWidget {
+  const ScheduleView({super.key});
+
   @override
-  Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(
-          backgroundColor: Colors.grey,
-          actions: [
-            TextButton(
-              onPressed: () async =>
-                  Navigator.pushNamed(context, '/custom'),
-              child: const Row(
-                mainAxisSize: MainAxisSize.max,
+  _ScheduleViewState createState() => _ScheduleViewState();
+}
+
+class ScheduleEvent {
+  final String title;
+  final int day;
+  final int hour;
+  final int duration;
+  final Color color;
+
+  ScheduleEvent({
+    required this.title,
+    required this.day,
+    required this.hour,
+    required this.duration,
+    required this.color,
+  });
+}
+
+class _ScheduleViewState extends State<ScheduleView> {
+  List<ScheduleEvent> events = [];
+  final List<Color> predefinedColors = [
+    Colors.blue,
+    Colors.green,
+    Colors.orange,
+    Colors.purple,
+    Colors.red,
+    Colors.teal,
+    Colors.pink,
+  ];
+
+  // 통합된 다이얼로그 함수
+  void _showEventDialog(BuildContext context,
+      [ScheduleEvent? event]) {
+    // 수정 모드면 기존 값을, 추가 모드면 기본값을 사용
+    String title = event?.title ?? '';
+    int day = event?.day ?? 0;
+    int hour = event?.hour ?? 9;
+    int duration = event?.duration ?? 1;
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title:
+                  Text(event == null ? '일정 추가' : '일정 편집'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.celebration_outlined,
-                      color: Colors.white),
-                  SizedBox(width: 8),
-                  Text(
-                    "Custom builders",
-                    style: TextStyle(
-                        color: Colors.white, fontSize: 16),
+                  TextField(
+                    decoration: const InputDecoration(
+                        labelText: '일정 제목'),
+                    controller: TextEditingController(
+                        text: title)
+                      ..selection =
+                          TextSelection.fromPosition(
+                        TextPosition(offset: title.length),
+                      ),
+                    onChanged: (value) => title = value,
                   ),
-                  SizedBox(width: 8),
-                  Icon(Icons.chevron_right_outlined,
-                      color: Colors.white),
+                  const SizedBox(height: 8),
+                  _buildDropdownButton(
+                    value: day,
+                    items: List.generate(
+                        7,
+                        (index) => {
+                              'value': index,
+                              'label': [
+                                '월',
+                                '화',
+                                '수',
+                                '목',
+                                '금',
+                                '토',
+                                '일'
+                              ][index]
+                            }),
+                    onChanged: (value) =>
+                        setDialogState(() => day = value),
+                  ),
+                  const SizedBox(height: 8),
+                  _buildDropdownButton(
+                    value: hour,
+                    items: List.generate(
+                        17,
+                        (index) => {
+                              'value': index + 9,
+                              'label':
+                                  '${(index + 9).toString().padLeft(2, '0')}:00'
+                            }),
+                    onChanged: (value) =>
+                        setDialogState(() => hour = value),
+                  ),
+                  const SizedBox(height: 8),
+                  _buildDropdownButton(
+                    value: duration,
+                    items: [1, 2, 3, 4]
+                        .map((value) => {
+                              'value': value,
+                              'label': '$value시간'
+                            })
+                        .toList(),
+                    onChanged: (value) => setDialogState(
+                        () => duration = value),
+                  ),
                 ],
               ),
-            ),
-          ],
-        ),
-        body: const Timetable(),
-      );
-}
+              actions: [
+                if (event != null)
+                  TextButton(
+                    child: const Text('삭제'),
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                      setState(() => events.remove(event));
+                    },
+                  ),
+                TextButton(
+                  child: const Text('취소'),
+                  onPressed: () =>
+                      Navigator.of(context).pop(),
+                ),
+                TextButton(
+                  child: Text(event == null ? '추가' : '수정'),
+                  onPressed: () {
+                    if (title.isEmpty) {
+                      ScaffoldMessenger.of(context)
+                          .showSnackBar(
+                        const SnackBar(
+                            content:
+                                Text('일정 제목을 입력해주세요.')),
+                      );
+                      return;
+                    }
 
-/// Timetable screen with all the stuff - controller, builders, etc.
-class CustomTimetableScreen extends StatefulWidget {
-  const CustomTimetableScreen({super.key});
-  @override
-  State<CustomTimetableScreen> createState() =>
-      _CustomTimetableScreenState();
-}
+                    final newEvent = ScheduleEvent(
+                      title: title,
+                      day: day,
+                      hour: hour,
+                      duration: duration,
+                      color: event?.color ??
+                          predefinedColors[Random().nextInt(
+                              predefinedColors.length)],
+                    );
 
-class _CustomTimetableScreenState
-    extends State<CustomTimetableScreen> {
-  final items = generateItems();
-  final controller = TimetableController(
-    start: DateUtils.dateOnly(DateTime.now())
-        .subtract(const Duration(days: 7)),
-    initialColumns: 3,
-    cellHeight: 100.0,
-    startHour: 9,
-    endHour: 18,
-  );
+                    setState(() {
+                      if (event == null) {
+                        events.add(newEvent);
+                      } else {
+                        final index = events.indexOf(event);
+                        events[index] = newEvent;
+                      }
+                    });
 
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      Future.delayed(const Duration(milliseconds: 100), () {
-        controller.jumpTo(DateTime.now());
-      });
-    });
+                    Navigator.of(context).pop();
+                  },
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildDropdownButton({
+    required int value,
+    required List<Map<String, dynamic>> items,
+    required Function(int) onChanged,
+  }) {
+    return DropdownButton<int>(
+      value: value,
+      items: items
+          .map((item) => DropdownMenuItem<int>(
+                value: item['value'],
+                child: Text(item['label']),
+              ))
+          .toList(),
+      onChanged: (value) {
+        if (value != null) {
+          onChanged(value);
+        }
+      },
+    );
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(
-          backgroundColor: Colors.grey,
-          actions: [
-            TextButton(
-              onPressed: () async => Navigator.pop(context),
-              child: const Row(
-                children: [
-                  Icon(Icons.chevron_left_outlined,
-                      color: Colors.white),
-                  SizedBox(width: 8),
-                  Text(
-                    "Default",
-                    style: TextStyle(
-                        color: Colors.white, fontSize: 16),
-                  ),
-                ],
-              ),
-            ),
-            const Spacer(),
-            IconButton(
-              icon: const Icon(Icons.calendar_view_day),
-              onPressed: () => controller.setColumns(1),
-            ),
-            IconButton(
-              icon: const Icon(
-                  Icons.calendar_view_month_outlined),
-              onPressed: () => controller.setColumns(3),
-            ),
-            IconButton(
-              icon: const Icon(Icons.calendar_view_week),
-              onPressed: () => controller.setColumns(5),
-            ),
-            IconButton(
-              icon: const Icon(Icons.zoom_in),
-              onPressed: () => controller.setCellHeight(
-                  controller.cellHeight + 10),
-            ),
-            IconButton(
-              icon: const Icon(Icons.zoom_out),
-              onPressed: () => controller.setCellHeight(
-                  controller.cellHeight - 10),
-            ),
-          ],
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: GridView.builder(
+        gridDelegate:
+            const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 7,
+          childAspectRatio: 1 / 2,
         ),
-        body: Timetable<String>(
-          controller: controller,
-          items: items,
-          cellBuilder: (datetime) => Container(
-            decoration: BoxDecoration(
-              border: Border.all(
-                  color: Colors.blueGrey, width: 0.2),
-            ),
-            child: Center(
-              child: Text(
-                DateFormat("MM/d/yyyy\nha")
-                    .format(datetime),
-                style: TextStyle(
-                  color: Color(0xff000000 +
-                          (0x002222 * datetime.hour) +
-                          (0x110000 * datetime.day))
-                      .withOpacity(0.5),
+        itemCount: 7 * 17,
+        itemBuilder: (context, index) {
+          int day = index % 7;
+          int hour = index ~/ 7 + 9;
+
+          // firstWhere 대신 where를 사용하여 해당 시간의 이벤트를 찾습니다
+          final currentEvents = events.where((e) =>
+              e.day == day &&
+              hour >= e.hour &&
+              hour < (e.hour + e.duration));
+
+          // 찾은 이벤트가 있고, 현재 시간이 이벤트의 시작 시간인 경우
+          if (currentEvents.isNotEmpty &&
+              hour == currentEvents.first.hour) {
+            final event = currentEvents.first;
+            return GestureDetector(
+              onTap: () => _showEventDialog(context, event),
+              child: Container(
+                height: 50.0 * event.duration,
+                margin: const EdgeInsets.all(1),
+                decoration: BoxDecoration(
+                  color: event.color,
+                  borderRadius: BorderRadius.circular(4),
                 ),
-                textAlign: TextAlign.center,
-              ),
-            ),
-          ),
-          cornerBuilder: (datetime) => Container(
-            color: Colors.accents[
-                datetime.day % Colors.accents.length],
-            child: Center(child: Text("${datetime.year}")),
-          ),
-          headerCellBuilder: (datetime) {
-            final color = Colors.primaries[
-                datetime.day % Colors.accents.length];
-            return Container(
-              decoration: BoxDecoration(
-                border: Border(
-                    bottom:
-                        BorderSide(color: color, width: 2)),
-              ),
-              child: Center(
+                alignment: Alignment.center,
                 child: Text(
-                  DateFormat("E\nMMM d").format(datetime),
-                  style: TextStyle(
-                    color: color,
-                  ),
+                  event.title,
+                  style:
+                      const TextStyle(color: Colors.white),
                   textAlign: TextAlign.center,
                 ),
               ),
             );
-          },
-          hourLabelBuilder: (time) {
-            final hour =
-                time.hour == 12 ? 12 : time.hour % 12;
-            final period = time.hour < 12 ? "am" : "pm";
-            final isCurrentHour =
-                time.hour == DateTime.now().hour;
-            return Text(
-              "$hour$period",
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: isCurrentHour
-                    ? FontWeight.bold
-                    : FontWeight.normal,
-              ),
-            );
-          },
-          itemBuilder: (item) => Container(
-            decoration: BoxDecoration(
-              color: Colors.white.withAlpha(220),
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.2),
-                  blurRadius: 4,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: Center(
-              child: Text(
-                item.data ?? "",
-                style: const TextStyle(fontSize: 14),
-              ),
-            ),
-          ),
-          nowIndicatorColor: Colors.red,
-          snapToDay: true,
-        ),
-        floatingActionButton: FloatingActionButton(
-          child: const Text("Now"),
-          onPressed: () =>
-              controller.jumpTo(DateTime.now()),
-        ),
-      );
-}
+          }
 
-/// Generates some random items for the timetable.
-List<TimetableItem<String>> generateItems() {
-  final random = Random();
-  final items = <TimetableItem<String>>[];
-  final today = DateUtils.dateOnly(DateTime.now());
-  for (var i = 0; i < 100; i++) {
-    int hourOffset = random.nextInt(56 * 24) - (7 * 24);
-    final date = today.add(Duration(hours: hourOffset));
-    items.add(TimetableItem(
-      date,
-      date.add(
-          Duration(minutes: (random.nextInt(8) * 15) + 15)),
-      data: "item $i",
-    ));
+          // 이벤트가 있지만 시작 시간이 아닌 경우 빈 컨테이너 반환
+          if (currentEvents.isNotEmpty) {
+            return Container();
+          }
+
+          // 이벤트가 없는 경우 기본 그리드 셀 반환
+          return Container(
+            margin: const EdgeInsets.all(1),
+            decoration: BoxDecoration(
+              border: Border.all(
+                  color: Colors.grey.withOpacity(0.3)),
+            ),
+          );
+        },
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => _showEventDialog(context),
+        child: const Icon(Icons.add),
+      ),
+    );
   }
-  return items;
 }

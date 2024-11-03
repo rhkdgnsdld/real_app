@@ -63,7 +63,7 @@ class _WeeklyScheduleScreenState
             IconButton(
               icon: const Icon(Icons.add,
                   color: Colors.white),
-              onPressed: () => _showAddEventDialog(context),
+              onPressed: () => _showEventDialog(context),
             ),
           ],
         ),
@@ -100,359 +100,397 @@ class _WeeklyScheduleScreenState
   }
 
   Widget buildTimeGrid() {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        buildTimeColumn(),
-        Expanded(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: List.generate(
+    return SingleChildScrollView(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          buildTimeColumn(),
+          Expanded(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: List.generate(
                 7,
                 (index) => Expanded(
-                      child: buildDayColumn(index),
-                    )),
+                  child: buildDayColumn(index),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget buildTimeColumn() {
+    return Column(
+      children: [
+        // 상단에 15픽셀(30분의 반) 높이의 빈 공간 추가
+        const SizedBox(height: 15),
+        ...List.generate(32, (index) {
+          final hour = 9 + (index ~/ 2);
+          final minute = (index % 2) * 30;
+          return Container(
+            height: 30,
+            width: 50,
+            alignment: Alignment.centerRight,
+            padding: const EdgeInsets.only(right: 8),
+            decoration: BoxDecoration(
+              border: Border(
+                bottom: BorderSide(
+                  color: minute == 0
+                      ? Colors.grey[300]!
+                      : Colors.grey[100]!,
+                ),
+              ),
+            ),
+            child: minute == 0
+                ? Text(
+                    '${hour.toString().padLeft(2, '0')}:00',
+                    style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey[600]),
+                  )
+                : const SizedBox(),
+          );
+        }),
+      ],
+    );
+  }
+
+  Widget buildDayColumn(int dayIndex) {
+    return Stack(
+      children: [
+        Column(
+          children: [
+            // 상단에 15픽셀(30분의 반) 높이의 빈 공간 추가
+            const SizedBox(height: 15),
+            ...List.generate(32, (index) {
+              return Container(
+                height: 30,
+                decoration: BoxDecoration(
+                  border: Border(
+                    bottom: BorderSide(
+                      color: index % 2 == 0
+                          ? Colors.grey[300]!
+                          : Colors.grey[100]!,
+                    ),
+                    right: BorderSide(
+                        color: Colors.grey[300]!),
+                  ),
+                ),
+              );
+            }),
+          ],
+        ),
+        // 이벤트도 같은 offset 적용
+        Padding(
+          padding: const EdgeInsets.only(top: 15),
+          child: Stack(
+            children: events
+                .where((event) => event.day == dayIndex)
+                .map((event) {
+              // 기존 계산 방식 유지
+              double startTimeInHours =
+                  event.startTimeAsDouble - 9.0;
+              double gridUnits = startTimeInHours * 2;
+              double topPosition = gridUnits * 30;
+
+              double durationInHours = event.duration;
+              double durationGridUnits =
+                  durationInHours * 2;
+              double heightValue = durationGridUnits * 30;
+
+              return Positioned(
+                top: topPosition,
+                left: 0,
+                right: 0,
+                height: heightValue,
+                child: Container(
+                  margin: const EdgeInsets.symmetric(
+                      horizontal: 2),
+                  decoration: BoxDecoration(
+                    color: event.color.withOpacity(0.7),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: GestureDetector(
+                    onTap: () =>
+                        _showEventDialog(context, event),
+                    child: Padding(
+                      padding: const EdgeInsets.all(4),
+                      child: Column(
+                        crossAxisAlignment:
+                            CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            event.title,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w500,
+                              fontSize: 13,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          Text(
+                            '${_formatTime(event.startTime)} - ${_formatTime(event.endTime)}',
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: Colors.black87,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
           ),
         ),
       ],
     );
   }
 
-  Widget buildTimeColumn() {
-    return Column(
-      children: List.generate(17, (index) {
-        final hour = (index + 9) % 24;
-        return Container(
-          height: 60,
-          width: 50,
-          alignment: Alignment.centerRight,
-          padding: const EdgeInsets.only(right: 8),
-          decoration: BoxDecoration(
-            border: Border(
-              bottom: BorderSide(color: Colors.grey[300]!),
-            ),
-          ),
-          child: Text(
-            '${hour.toString().padLeft(2, '0')}:00',
-            style: TextStyle(
-                fontSize: 12, color: Colors.grey[600]),
-          ),
-        );
-      }),
-    );
+// 시간 포맷 헬퍼 함수
+  String _formatTime(TimeOfDay time) {
+    final hour = time.hour.toString().padLeft(2, '0');
+    final minute = time.minute.toString().padLeft(2, '0');
+    return '$hour:$minute';
   }
 
-  Widget buildDayColumn(int dayIndex) {
-    return Column(
-      children: List.generate(17, (timeIndex) {
-        final eventsAtThisTime = events.where((event) =>
-            event.day == dayIndex &&
-            event.hour <= timeIndex + 9 &&
-            event.hour + event.duration > timeIndex + 9);
+  void _showEventDialog(BuildContext context,
+      [ScheduleEvent? event]) {
+    String title = event?.title ?? '';
+    int day = event?.day ?? 0;
+    TimeOfDay startTime = event?.startTime ??
+        const TimeOfDay(hour: 9, minute: 0);
+    TimeOfDay endTime = event?.endTime ??
+        const TimeOfDay(hour: 10, minute: 0);
 
-        return Stack(
-          children: [
-            Container(
-              height: 60,
-              decoration: BoxDecoration(
-                border: Border(
-                  bottom:
-                      BorderSide(color: Colors.grey[300]!),
-                  right:
-                      BorderSide(color: Colors.grey[300]!),
-                ),
-              ),
-            ),
-            ...eventsAtThisTime.map((event) =>
-                Positioned.fill(
-                  child: GestureDetector(
-                    onTap: () => _showEditEventDialog(
-                        context, event),
-                    child: Container(
-                      margin: const EdgeInsets.all(2),
-                      decoration: BoxDecoration(
-                        color: event.color.withOpacity(0.7),
-                        borderRadius:
-                            BorderRadius.circular(4),
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title:
+                  Text(event == null ? '시간표 추가' : '시간표 수정'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment:
+                    CrossAxisAlignment.start,
+                children: [
+                  TextField(
+                    decoration: const InputDecoration(
+                      labelText: '과목명',
+                      hintText: '과목명을 입력하세요',
+                    ),
+                    controller: TextEditingController(
+                        text: title)
+                      ..selection =
+                          TextSelection.fromPosition(
+                        TextPosition(offset: title.length),
                       ),
-                      child: Center(
-                        child: Text(
-                          event.title,
-                          style: const TextStyle(
-                              fontWeight: FontWeight.w400,
-                              fontSize: 15,
-                              color: Colors.black),
-                          overflow: TextOverflow.ellipsis,
+                    onChanged: (value) => title = value,
+                  ),
+                  const SizedBox(height: 16),
+                  const Text('요일',
+                      style: TextStyle(fontSize: 16)),
+                  DropdownButton<int>(
+                    isExpanded: true,
+                    value: day,
+                    items: const [
+                      DropdownMenuItem(
+                          value: 0, child: Text('월요일')),
+                      DropdownMenuItem(
+                          value: 1, child: Text('화요일')),
+                      DropdownMenuItem(
+                          value: 2, child: Text('수요일')),
+                      DropdownMenuItem(
+                          value: 3, child: Text('목요일')),
+                      DropdownMenuItem(
+                          value: 4, child: Text('금요일')),
+                      DropdownMenuItem(
+                          value: 5, child: Text('토요일')),
+                      DropdownMenuItem(
+                          value: 6, child: Text('일요일')),
+                    ],
+                    onChanged: (value) {
+                      if (value != null) {
+                        setDialogState(() => day = value);
+                      }
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment:
+                              CrossAxisAlignment.start,
+                          children: [
+                            const Text('시작 시간'),
+                            TextButton(
+                              onPressed: () async {
+                                final TimeOfDay? picked =
+                                    await showTimePicker(
+                                  context: context,
+                                  initialTime: startTime,
+                                  builder:
+                                      (context, child) {
+                                    return MediaQuery(
+                                      data: MediaQuery.of(
+                                              context)
+                                          .copyWith(
+                                        alwaysUse24HourFormat:
+                                            true,
+                                      ),
+                                      child: child!,
+                                    );
+                                  },
+                                );
+                                if (picked != null) {
+                                  setDialogState(() =>
+                                      startTime = picked);
+                                }
+                              },
+                              child: Text(
+                                  _formatTime(startTime)),
+                            ),
+                          ],
                         ),
                       ),
-                    ),
-                  ),
-                )),
-          ],
-        );
-      }),
-    );
-  }
-
-  void _showAddEventDialog(BuildContext context) {
-    String title = '';
-    int day = 0;
-    int hour = 9;
-    int duration = 1;
-
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return StatefulBuilder(
-          builder: (context, setState) {
-            return AlertDialog(
-              title: const Text('일정 추가'),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextField(
-                    decoration: const InputDecoration(
-                        labelText: '일정 제목'),
-                    onChanged: (value) => title = value,
-                  ),
-                  DropdownButton<int>(
-                    value: day,
-                    items: List.generate(
-                        7,
-                        (index) => DropdownMenuItem<int>(
-                              value: index,
-                              child: Text([
-                                '월',
-                                '화',
-                                '수',
-                                '목',
-                                '금',
-                                '토',
-                                '일'
-                              ][index]),
-                            )),
-                    onChanged: (value) {
-                      if (value != null) {
-                        setState(() => day = value);
-                      }
-                    },
-                  ),
-                  DropdownButton<int>(
-                    value: hour,
-                    items: List.generate(
-                        17,
-                        (index) => DropdownMenuItem<int>(
-                              value: index + 9,
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment:
+                              CrossAxisAlignment.start,
+                          children: [
+                            const Text('종료 시간'),
+                            TextButton(
+                              onPressed: () async {
+                                final TimeOfDay? picked =
+                                    await showTimePicker(
+                                  context: context,
+                                  initialTime: endTime,
+                                  builder:
+                                      (context, child) {
+                                    return MediaQuery(
+                                      data: MediaQuery.of(
+                                              context)
+                                          .copyWith(
+                                        alwaysUse24HourFormat:
+                                            true,
+                                      ),
+                                      child: child!,
+                                    );
+                                  },
+                                );
+                                if (picked != null) {
+                                  setDialogState(() =>
+                                      endTime = picked);
+                                }
+                              },
                               child: Text(
-                                  '${(index + 9).toString().padLeft(2, '0')}:00'),
-                            )),
-                    onChanged: (value) {
-                      if (value != null) {
-                        setState(() => hour = value);
-                      }
-                    },
-                  ),
-                  DropdownButton<int>(
-                    value: duration,
-                    items: [1, 2, 3, 4].map((int value) {
-                      return DropdownMenuItem<int>(
-                        value: value,
-                        child: Text('$value시간'),
-                      );
-                    }).toList(),
-                    onChanged: (value) {
-                      if (value != null) {
-                        setState(() => duration = value);
-                      }
-                    },
+                                  _formatTime(endTime)),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
               actions: [
+                if (event != null)
+                  TextButton(
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                      setState(() => events.remove(event));
+                    },
+                    child: const Text('삭제'),
+                  ),
                 TextButton(
-                  child: const Text('취소'),
                   onPressed: () =>
                       Navigator.of(context).pop(),
+                  child: const Text('취소'),
                 ),
                 TextButton(
-                  child: const Text('추가'),
                   onPressed: () {
-                    if (title.isNotEmpty) {
-                      Navigator.of(context).pop();
-                      // 여기서 전체 화면의 상태를 업데이트합니다.
-                      setState(() {
-                        events.add(ScheduleEvent(
-                          title: title,
-                          day: day,
-                          hour: hour,
-                          duration: duration,
-                          color: predefinedColors[Random()
-                              .nextInt(
-                                  predefinedColors.length)],
-                        ));
-                      });
-                    } else {
+                    if (title.isEmpty) {
                       ScaffoldMessenger.of(context)
                           .showSnackBar(
                         const SnackBar(
-                            content:
-                                Text('일정 제목을 입력해주세요.')),
+                            content: Text('과목명을 입력해주세요')),
                       );
+                      return;
                     }
-                  },
-                ),
-              ],
-            );
-          },
-        );
-      },
-    ).then((_) {
-      // 다이얼로그가 닫힌 후 전체 화면을 다시 빌드합니다.
-      setState(() {});
-    });
-  }
 
-  void _showEditEventDialog(
-      BuildContext context, ScheduleEvent event) {
-    String title = event.title;
-    int day = event.day;
-    int hour = event.hour;
-    int duration = event.duration;
+                    final startDouble = startTime.hour +
+                        (startTime.minute / 60);
+                    final endDouble = endTime.hour +
+                        (endTime.minute / 60);
 
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return StatefulBuilder(
-          builder: (context, setState) {
-            return AlertDialog(
-              title: const Text('일정 편집'),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextField(
-                    decoration: const InputDecoration(
-                        labelText: '일정 제목'),
-                    controller:
-                        TextEditingController(text: title),
-                    onChanged: (value) => title = value,
-                  ),
-                  DropdownButton<int>(
-                    value: day,
-                    items: List.generate(
-                        7,
-                        (index) => DropdownMenuItem<int>(
-                              value: index,
-                              child: Text([
-                                '월',
-                                '화',
-                                '수',
-                                '목',
-                                '금',
-                                '토',
-                                '일'
-                              ][index]),
-                            )),
-                    onChanged: (value) {
-                      if (value != null) {
-                        setState(() => day = value);
-                      }
-                    },
-                  ),
-                  DropdownButton<int>(
-                    value: hour,
-                    items: List.generate(
-                        17,
-                        (index) => DropdownMenuItem<int>(
-                              value: index + 9,
-                              child: Text(
-                                  '${(index + 9).toString().padLeft(2, '0')}:00'),
-                            )),
-                    onChanged: (value) {
-                      if (value != null) {
-                        setState(() => hour = value);
-                      }
-                    },
-                  ),
-                  DropdownButton<int>(
-                    value: duration,
-                    items: [1, 2, 3, 4].map((int value) {
-                      return DropdownMenuItem<int>(
-                        value: value,
-                        child: Text('$value시간'),
+                    if (startDouble >= endDouble) {
+                      ScaffoldMessenger.of(context)
+                          .showSnackBar(
+                        const SnackBar(
+                            content: Text(
+                                '종료 시간은 시작 시간보다 늦어야 합니다')),
                       );
-                    }).toList(),
-                    onChanged: (value) {
-                      if (value != null) {
-                        setState(() => duration = value);
-                      }
-                    },
-                  ),
-                ],
-              ),
-              actions: [
-                TextButton(
-                  child: const Text('삭제'),
-                  onPressed: () {
-                    Navigator.of(context).pop();
+                      return;
+                    }
+
+                    final newEvent = ScheduleEvent(
+                      title: title,
+                      day: day,
+                      startTime: startTime,
+                      endTime: endTime,
+                      color: event?.color ??
+                          predefinedColors[Random().nextInt(
+                              predefinedColors.length)],
+                    );
+
                     setState(() {
-                      events.remove(event);
+                      if (event == null) {
+                        events.add(newEvent);
+                      } else {
+                        final index = events.indexOf(event);
+                        events[index] = newEvent;
+                      }
                     });
+
+                    Navigator.of(context).pop();
                   },
-                ),
-                TextButton(
-                  child: const Text('취소'),
-                  onPressed: () =>
-                      Navigator.of(context).pop(),
-                ),
-                TextButton(
-                  child: const Text('수정'),
-                  onPressed: () {
-                    if (title.isNotEmpty) {
-                      Navigator.of(context).pop();
-                      setState(() {
-                        int index = events.indexOf(event);
-                        events[index] = ScheduleEvent(
-                          title: title,
-                          day: day,
-                          hour: hour,
-                          duration: duration,
-                          color: event.color,
-                        );
-                      });
-                    } else {
-                      ScaffoldMessenger.of(context)
-                          .showSnackBar(
-                        const SnackBar(
-                            content:
-                                Text('일정 제목을 입력해주세요.')),
-                      );
-                    }
-                  },
+                  child: Text(event == null ? '추가' : '수정'),
                 ),
               ],
             );
           },
         );
       },
-    ).then((_) {
-      // 다이얼로그가 닫힌 후 전체 화면을 다시 빌드합니다.
-      setState(() {});
-    });
+    );
   }
 }
 
 class ScheduleEvent {
   final String title;
   final int day;
-  final int hour;
-  final int duration;
+  final TimeOfDay startTime; // 시작 시간을 TimeOfDay로 변경
+  final TimeOfDay endTime; // 종료 시간을 TimeOfDay로 변경
   final Color color;
 
   ScheduleEvent({
     required this.title,
     required this.day,
-    required this.hour,
-    required this.duration,
+    required this.startTime,
+    required this.endTime,
     required this.color,
   });
+
+  // 시간을 double로 변환하는 helper 메서드
+  double get startTimeAsDouble =>
+      startTime.hour + (startTime.minute / 60);
+  double get endTimeAsDouble =>
+      endTime.hour + (endTime.minute / 60);
+  double get duration =>
+      endTimeAsDouble - startTimeAsDouble;
 }

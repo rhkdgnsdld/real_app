@@ -8,8 +8,9 @@ import 'grades.dart';
 import 'package:new_new_app/widgets/button.dart';
 import '../profile_screen/teacherprofile_screen.dart';
 import '../calendar_screen/widget_calendar.dart';
-
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class MainTeacherScreen extends StatefulWidget {
   const MainTeacherScreen({super.key});
@@ -61,6 +62,119 @@ class _MainTeacherScreenState
   }
 }
 
+Future<void> _showConnectionDialog(
+    BuildContext context) async {
+  final currentUser = FirebaseAuth.instance.currentUser;
+  final teacherDoc = await FirebaseFirestore.instance
+      .collection('users')
+      .doc(currentUser!.uid)
+      .get();
+
+  final teacherData = teacherDoc.data();
+  final teacherUserId = teacherData?['userId'] ?? '';
+
+  final studentIdController = TextEditingController();
+  final studentNameController = TextEditingController();
+
+  showDialog(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: const Text('학생 연동'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          TextField(
+            controller: studentIdController,
+            decoration: const InputDecoration(
+              labelText: '학생 ID',
+              border: OutlineInputBorder(),
+            ),
+          ),
+          const SizedBox(height: 8),
+          TextField(
+            controller: studentNameController,
+            decoration: const InputDecoration(
+              labelText: '학생 이름',
+              border: OutlineInputBorder(),
+            ),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('취소'),
+        ),
+        TextButton(
+          onPressed: () async {
+            try {
+              // 학생 존재 여부 확인
+              final studentDocs = await FirebaseFirestore
+                  .instance
+                  .collection('users')
+                  .where('userId',
+                      isEqualTo: studentIdController.text)
+                  .where('job', isEqualTo: '학생')
+                  .get();
+
+              if (studentDocs.docs.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                      content: Text('존재하지 않는 학생입니다.')),
+                );
+                return;
+              }
+
+              final studentUid = studentDocs.docs.first.id;
+
+              // 이미 연동 요청이 있는지 확인
+              final existingConnection =
+                  await FirebaseFirestore.instance
+                      .collection('connections')
+                      .where('studentId',
+                          isEqualTo:
+                              studentIdController.text)
+                      .where('teacherId',
+                          isEqualTo: teacherUserId)
+                      .get();
+
+              if (existingConnection.docs.isNotEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                      content: Text('이미 연동 요청이 존재합니다.')),
+                );
+                return;
+              }
+
+              // Firestore에 연동 요청 저장 (ID만 저장)
+              await FirebaseFirestore.instance
+                  .collection('connections')
+                  .doc()
+                  .set({
+                'teacherId': teacherUserId,
+                'studentId': studentIdController.text,
+                'status': 'pending',
+                'timestamp': FieldValue.serverTimestamp(),
+              });
+
+              Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                    content: Text('연동 요청을 보냈습니다.')),
+              );
+            } catch (e) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('오류가 발생했습니다: $e')),
+              );
+            }
+          },
+          child: const Text('연동 요청'),
+        ),
+      ],
+    ),
+  );
+}
+
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -69,7 +183,7 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  String _TeacherName = '';
+  String _teacherName = '';
 
   @override
   void initState() {
@@ -78,11 +192,20 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _loadTeacherName() async {
-    final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      _TeacherName =
-          prefs.getString('teacherName') ?? '선생님';
-    });
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser != null) {
+      final teacherDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(currentUser.uid)
+          .get();
+
+      if (teacherDoc.exists) {
+        setState(() {
+          _teacherName =
+              teacherDoc.data()?['name'] ?? '선생님';
+        });
+      }
+    }
   }
 
   @override
@@ -94,16 +217,27 @@ class _HomeScreenState extends State<HomeScreen> {
           color: Colors.blue,
           child: SafeArea(
             bottom: false,
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                '안녕하세요! $_TeacherName 선생님',
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
+            child: Row(
+              mainAxisAlignment:
+                  MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  '안녕하세요! $_teacherName 선생님',
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
                 ),
-              ),
+                IconButton(
+                  icon: const Icon(
+                    Icons.connect_without_contact,
+                    color: Colors.white,
+                  ),
+                  onPressed: () =>
+                      _showConnectionDialog(context),
+                ),
+              ],
             ),
           ),
         ),
@@ -116,17 +250,20 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: Row(
                     children: [
                       Expanded(
-                          child: CustomButton(
-                              text: '과제 부여하기',
-                              icon: Icons.assignment,
-                              screen:
-                                  WeeklyAssignmentScreen())),
+                        child: CustomButton(
+                          text: '과제 부여하기',
+                          icon: Icons.assignment,
+                          screen: WeeklyAssignmentScreen(),
+                        ),
+                      ),
                       SizedBox(width: 16),
                       Expanded(
-                          child: CustomButton(
-                              text: '출결 확인하기',
-                              icon: Icons.check_circle,
-                              screen: AttendanceScreenT())),
+                        child: CustomButton(
+                          text: '출결 확인하기',
+                          icon: Icons.check_circle,
+                          screen: AttendanceScreenT(),
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -135,26 +272,30 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: Row(
                     children: [
                       Expanded(
-                          child: CustomButton(
-                              text: '수업 자료 업로드하기',
-                              icon: Icons.book,
-                              screen:
-                                  TeacherFileUploadScreen())),
+                        child: CustomButton(
+                          text: '수업 자료 업로드하기',
+                          icon: Icons.book,
+                          screen: TeacherFileUploadScreen(),
+                        ),
+                      ),
                       SizedBox(width: 16),
                       Expanded(
-                          child: CustomButton(
-                              text: '학생과의 대화',
-                              icon: Icons.chat,
-                              screen: ChatScreen())),
+                        child: CustomButton(
+                          text: '학생과의 대화',
+                          icon: Icons.chat,
+                          screen: ChatScreen(),
+                        ),
+                      ),
                     ],
                   ),
                 ),
                 SizedBox(height: 16),
                 Expanded(
                   child: WideButton(
-                      text: '성적 누적 추이 확인',
-                      icon: Icons.trending_up,
-                      screen: GradeTrendScreenT()),
+                    text: '성적 누적 추이 확인',
+                    icon: Icons.trending_up,
+                    screen: GradeTrendScreenT(),
+                  ),
                 ),
               ],
             ),
