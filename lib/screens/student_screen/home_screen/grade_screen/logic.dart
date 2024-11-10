@@ -2,18 +2,23 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'package:intl/intl.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class Grade {
+  final String? id;
   final DateTime date;
   final String testName;
   final int score;
 
   Grade(
-      {required this.date,
+      {this.id,
+      required this.date,
       required this.testName,
       required this.score});
 
   Map<String, dynamic> toJson() => {
+        'id': id,
         'date': date.toIso8601String(),
         'testName': testName,
         'score': score,
@@ -21,6 +26,7 @@ class Grade {
 
   factory Grade.fromJson(Map<String, dynamic> json) =>
       Grade(
+        id: json['id'],
         date: DateTime.parse(json['date']),
         testName: json['testName'],
         score: json['score'],
@@ -28,15 +34,27 @@ class Grade {
 }
 
 class GradeRepository {
-  Future<void> saveGrade(
-      bool isOfficial, Grade grade) async {
-    final prefs = await SharedPreferences.getInstance();
-    final key =
-        isOfficial ? 'officialGrades' : 'privateGrades';
-    List<dynamic> grades =
-        jsonDecode(prefs.getString(key) ?? '[]');
-    grades.add(grade.toJson());
-    await prefs.setString(key, jsonEncode(grades));
+  final FirebaseFirestore _firestore =
+      FirebaseFirestore.instance;
+
+  Future<void> saveGrade(String studentUid, bool isOfficial,
+      Grade grade) async {
+    try {
+      await _firestore
+          .collection('users')
+          .doc(studentUid)
+          .collection('grades')
+          .add({
+        'date': grade.date.toIso8601String(),
+        'testName': grade.testName,
+        'score': grade.score,
+        'isOfficial': isOfficial,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      print('Error saving grade: $e');
+      rethrow;
+    }
   }
 
   Future<List<Grade>> getGrades(bool isOfficial) async {
@@ -50,26 +68,68 @@ class GradeRepository {
         .toList();
   }
 
-  Future<void> updateGrade(
-      bool isOfficial, int index, Grade grade) async {
-    final prefs = await SharedPreferences.getInstance();
-    final key =
-        isOfficial ? 'officialGrades' : 'privateGrades';
-    List<dynamic> grades =
-        jsonDecode(prefs.getString(key) ?? '[]');
-    grades[index] = grade.toJson();
-    await prefs.setString(key, jsonEncode(grades));
+  Future<void> updateGrade(String studentUid,
+      String gradeId, Grade grade, bool isOfficial) async {
+    try {
+      await _firestore
+          .collection('users')
+          .doc(studentUid)
+          .collection('grades')
+          .doc(gradeId)
+          .update({
+        'date': grade.date.toIso8601String(),
+        'testName': grade.testName,
+        'score': grade.score,
+        'isOfficial': isOfficial,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      print('Error updating grade: $e');
+    }
   }
 
   Future<void> deleteGrade(
-      bool isOfficial, int index) async {
-    final prefs = await SharedPreferences.getInstance();
-    final key =
-        isOfficial ? 'officialGrades' : 'privateGrades';
-    List<dynamic> grades =
-        jsonDecode(prefs.getString(key) ?? '[]');
-    grades.removeAt(index);
-    await prefs.setString(key, jsonEncode(grades));
+      String studentUid, String gradeId) async {
+    try {
+      await _firestore
+          .collection('users')
+          .doc(studentUid)
+          .collection('grades')
+          .doc(gradeId)
+          .delete();
+    } catch (e) {
+      print('Error deleting grade: $e');
+      rethrow;
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> getGradesWithId(
+      String studentUid, bool isOfficial) async {
+    try {
+      final snapshot = await _firestore
+          .collection('users')
+          .doc(studentUid)
+          .collection('grades')
+          .where('isOfficial', isEqualTo: isOfficial)
+          .orderBy('date', descending: false) // 날짜로만 정렬
+          // .orderBy('__name__') 제거
+          .get();
+
+      return snapshot.docs
+          .map((doc) => {
+                'id': doc.id,
+                'grade': Grade(
+                  id: doc.id,
+                  date: DateTime.parse(doc['date']),
+                  testName: doc['testName'],
+                  score: doc['score'],
+                ),
+              })
+          .toList();
+    } catch (e) {
+      print('Error getting grades: $e');
+      return [];
+    }
   }
 }
 
@@ -94,8 +154,10 @@ class ValidationResult {
 }
 
 class GradeTrendLogic {
-  final GradeRepository _repository = GradeRepository();
-  final GradeValidator _validator = GradeValidator();
+  final GradeRepository repository = GradeRepository();
+  final GradeValidator _validator = GradeValidator(); // 추가
+  final FirebaseFirestore _firestore =
+      FirebaseFirestore.instance;
 
   Future<void> handleAddButtonPressed(
     BuildContext context,
@@ -109,9 +171,16 @@ class GradeTrendLogic {
       final validationResult =
           _validator.validateGrade(grade);
       if (validationResult.isValid) {
-        await _repository.saveGrade(
-            isOfficialSelected, grade);
-        onSave(true, '');
+        // Firebase Auth에서 현재 사용자 ID 가져오기
+        String? userId =
+            FirebaseAuth.instance.currentUser?.uid;
+        if (userId != null) {
+          await repository.saveGrade(
+              userId, isOfficialSelected, grade); // 수정
+          onSave(true, '');
+        } else {
+          onSave(false, '사용자 정보를 찾을 수 없습니다.');
+        }
       } else {
         onSave(false, validationResult.errorMessage);
       }
@@ -119,34 +188,69 @@ class GradeTrendLogic {
   }
 
   Future<List<Grade>> getGrades(bool isOfficial) =>
-      _repository.getGrades(isOfficial);
+      repository.getGrades(isOfficial);
 
-  Future<void> editGrade(BuildContext context,
-      bool isOfficial, int index) async {
-    final grades = await getGrades(isOfficial);
-    if (index < 0 || index >= grades.length) return;
+  Future<void> editGrade(
+      BuildContext context,
+      String studentUid,
+      String gradeId,
+      Grade grade,
+      bool isOfficial) async {
+    try {
+      final result = await _showGradeDialog(
+        context,
+        isOfficialSelected: isOfficial,
+        initialGrade: grade,
+      );
 
-    final result = await _showGradeDialog(context,
-        initialGrade: grades[index]);
-    if (result != null) {
-      if (result is Grade) {
-        await _repository.updateGrade(
-            isOfficial, index, result);
-      } else if (result == 'delete') {
-        await _repository.deleteGrade(isOfficial, index);
+      print('Dialog result: $result'); // 디버깅용
+
+      if (result == 'delete') {
+        print(
+            'Delete requested for grade: $gradeId'); // 디버깅용
+        await repository.deleteGrade(studentUid, gradeId);
+        // 삭제 성공 후 네비게이션
+        Navigator.of(context).pop(true); // 삭제 성공을 알림
+      } else if (result != null && result is Grade) {
+        await repository.updateGrade(
+            studentUid, gradeId, result, isOfficial);
+        Navigator.of(context).pop(true); // 업데이트 성공을 알림
       }
+    } catch (e) {
+      print('Error in editGrade: $e'); // 디버깅용
+      // 에러 처리
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('삭제 중 오류가 발생했습니다: $e')),
+      );
     }
   }
 
-  Future<dynamic> _showGradeDialog(BuildContext context,
-      {Grade? initialGrade,
-      bool isOfficialSelected = false}) async {
+  Future<void> deleteGrade(
+      String studentUid, String gradeId) async {
+    try {
+      await _firestore
+          .collection('users')
+          .doc(studentUid)
+          .collection('grades')
+          .doc(gradeId)
+          .delete();
+    } catch (e) {
+      print('Error deleting grade: $e');
+      rethrow;
+    }
+  }
+
+  Future<dynamic> _showGradeDialog(
+    BuildContext context, {
+    bool isOfficialSelected = false,
+    Grade? initialGrade,
+  }) async {
     DateTime selectedDate =
         initialGrade?.date ?? DateTime.now();
-    final testNameController = TextEditingController(
-        text: initialGrade?.testName ?? '');
+    final testNameController =
+        TextEditingController(text: initialGrade?.testName);
     final scoreController = TextEditingController(
-        text: initialGrade?.score.toString() ?? '');
+        text: initialGrade?.score.toString());
 
     return showDialog<dynamic>(
       context: context,
@@ -214,32 +318,33 @@ class GradeTrendLogic {
                 ],
               ),
               actions: <Widget>[
+                if (initialGrade != null)
+                  TextButton(
+                    child: const Text('삭제',
+                        style:
+                            TextStyle(color: Colors.red)),
+                    onPressed: () =>
+                        Navigator.of(context).pop('delete'),
+                  ),
                 TextButton(
                   child: const Text('취소'),
                   onPressed: () =>
                       Navigator.of(context).pop(),
                 ),
                 TextButton(
-                  child: const Text('저장'),
-                  onPressed: () {
-                    final score =
-                        int.tryParse(scoreController.text);
-                    if (score != null) {
-                      Navigator.of(context).pop(Grade(
-                        date: selectedDate,
-                        testName: testNameController.text,
-                        score: score,
-                      ));
-                    }
-                  },
-                ),
-                if (initialGrade != null)
-                  TextButton(
-                    child: const Text('삭제'),
+                    child: Text(
+                        initialGrade == null ? '저장' : '수정'),
                     onPressed: () {
-                      Navigator.of(context).pop('delete');
-                    },
-                  ),
+                      final score = int.tryParse(
+                          scoreController.text);
+                      if (score != null) {
+                        Navigator.of(context).pop(Grade(
+                          date: selectedDate,
+                          testName: testNameController.text,
+                          score: score,
+                        ));
+                      }
+                    }),
               ],
             );
           },

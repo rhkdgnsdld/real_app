@@ -3,6 +3,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'logic.dart';
 import 'package:intl/intl.dart';
 import 'dart:math' as math;
+import 'package:firebase_auth/firebase_auth.dart';
 
 class GradeTrendScreen extends StatefulWidget {
   const GradeTrendScreen({super.key});
@@ -14,6 +15,7 @@ class GradeTrendScreen extends StatefulWidget {
 
 class _GradeTrendScreenState
     extends State<GradeTrendScreen> {
+  String currentUserUid = '';
   bool _isOfficialSelected = true;
   final GradeTrendLogic _logic = GradeTrendLogic();
   List<Grade> _grades = [];
@@ -21,15 +23,33 @@ class _GradeTrendScreenState
   @override
   void initState() {
     super.initState();
+    currentUserUid =
+        FirebaseAuth.instance.currentUser?.uid ?? '';
+    if (currentUserUid.isEmpty) {
+      // 로그인되지 않은 경우 처리
+      Navigator.of(context).pop();
+      return;
+    }
     _loadGrades();
   }
 
   void _loadGrades() async {
-    final grades =
-        await _logic.getGrades(_isOfficialSelected);
-    setState(() {
-      _grades = grades;
-    });
+    try {
+      final gradesList =
+          await _logic.repository.getGradesWithId(
+        currentUserUid,
+        _isOfficialSelected,
+      );
+      setState(() {
+        _grades = gradesList
+            .map((gradeData) => gradeData['grade'] as Grade)
+            .toList();
+      });
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('성적 로딩 중 오류가 발생했습니다: $e')),
+      );
+    }
   }
 
   void _updateSelectionState(bool isOfficial) {
@@ -250,23 +270,51 @@ class _GradeTrendScreenState
 
   void _showAddGradeDialog(BuildContext context) {
     _logic.handleAddButtonPressed(
-        context, _isOfficialSelected,
-        onSave: (isValid, errorMessage) {
-      if (isValid) {
-        _loadGrades();
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(errorMessage)));
-      }
-    });
+      context,
+      _isOfficialSelected,
+      onSave: (isValid, errorMessage) {
+        if (isValid) {
+          _loadGrades();
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(errorMessage)),
+          );
+        }
+      },
+    );
   }
 
   void _showEditDeleteDialog(
       BuildContext context, int index) {
-    _logic
-        .editGrade(context, _isOfficialSelected, index)
-        .then((_) {
-      _loadGrades();
-    });
+    if (index >= 0 && index < _grades.length) {
+      final grade = _grades[index];
+      if (grade.id == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('성적 ID를 찾을 수 없습니다.'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        return;
+      }
+
+      _logic
+          .editGrade(
+            context,
+            currentUserUid,
+            grade.id!, // null이 아님이 확인된 ID 사용
+            grade,
+            _isOfficialSelected,
+          )
+          .then((_) => _loadGrades())
+          .catchError((error) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('수정 중 오류가 발생했습니다: $error'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      });
+    }
   }
 }

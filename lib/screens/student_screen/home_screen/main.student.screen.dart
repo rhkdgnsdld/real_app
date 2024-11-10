@@ -24,7 +24,7 @@ class _MainStudentScreenState
 
   final List<Widget> _children = [
     const HomeScreen(),
-    const ScheduleView(),
+    WeeklyScheduleScreenS(),
     const StudentprofileScreen(),
   ];
 

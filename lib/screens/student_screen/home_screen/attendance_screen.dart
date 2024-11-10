@@ -35,30 +35,46 @@ class _StudentAttendanceCalendarState
   Future<void> _loadConnectedTeacher() async {
     try {
       final currentUser = FirebaseAuth.instance.currentUser;
-      print(
-          'Current User ID: ${currentUser?.uid}'); // 현재 사용자 ID 확인
 
       if (currentUser != null) {
+        // 먼저 현재 사용자의 userId를 가져옴
+        final userDoc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(currentUser.uid)
+            .get();
+
+        final userId = userDoc.data()?['userId'];
+
+        // userId로 연결을 검색
         final connection = await FirebaseFirestore.instance
             .collection('connections')
-            .where('studentId', isEqualTo: currentUser.uid)
+            .where('studentId', isEqualTo: userId)
             .where('status', isEqualTo: 'accepted')
             .get();
 
         print(
-            'Found Connections: ${connection.docs.length}'); // 연결 수 확인
+            'Found Connections: ${connection.docs.length}');
 
         if (connection.docs.isNotEmpty) {
           final teacherId =
               connection.docs.first.data()['teacherId'];
-          print(
-              'Found Teacher ID: $teacherId'); // 선생님 ID 확인
 
-          setState(() {
-            _connectedTeacherId = teacherId;
-          });
+          // teacherId로 교사의 uid 찾기
+          final teacherDocs = await FirebaseFirestore
+              .instance
+              .collection('users')
+              .where('userId', isEqualTo: teacherId)
+              .get();
 
-          await _loadAttendanceData();
+          if (teacherDocs.docs.isNotEmpty) {
+            final teacherUid = teacherDocs.docs.first.id;
+
+            setState(() {
+              _connectedTeacherId = teacherUid;
+            });
+
+            await _loadAttendanceData();
+          }
         } else {
           print('No connected teacher found');
         }

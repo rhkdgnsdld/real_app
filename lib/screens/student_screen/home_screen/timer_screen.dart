@@ -12,7 +12,7 @@ class TimerScreen extends StatefulWidget {
 class _HomeScreenState extends State<TimerScreen>
     with TickerProviderStateMixin {
   static const thirtyMinutes = 1800;
-  static const sixtyMinutes = 3600;
+  static const eigthtyMinutes = 4800;
   static const hundredMinutes = 6000;
 
   late AnimationController _animationController;
@@ -186,7 +186,7 @@ class _HomeScreenState extends State<TimerScreen>
                   MainAxisAlignment.spaceEvenly,
               children: [
                 _buildTimeSelectIcon(30, thirtyMinutes),
-                _buildTimeSelectIcon(60, sixtyMinutes),
+                _buildTimeSelectIcon(80, eigthtyMinutes),
                 _buildTimeSelectIcon(100, hundredMinutes),
               ],
             ),

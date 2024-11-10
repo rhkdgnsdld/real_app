@@ -3,9 +3,14 @@ import 'package:fl_chart/fl_chart.dart';
 import 'logic.dart';
 import 'package:intl/intl.dart';
 import 'dart:math' as math;
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class GradeTrendScreenT extends StatefulWidget {
-  const GradeTrendScreenT({super.key});
+  final String studentUid; // 추가
+
+  const GradeTrendScreenT(
+      {required this.studentUid, // 추가
+      super.key});
 
   @override
   _GradeTrendScreenState createState() =>
@@ -15,7 +20,8 @@ class GradeTrendScreenT extends StatefulWidget {
 class _GradeTrendScreenState
     extends State<GradeTrendScreenT> {
   bool _isOfficialSelected = true;
-  final GradeTrendLogic _logic = GradeTrendLogic();
+  final GradeRepository repository =
+      GradeRepository(); // _logic 대신 repository 사용
   List<Grade> _grades = [];
 
   @override
@@ -25,11 +31,19 @@ class _GradeTrendScreenState
   }
 
   void _loadGrades() async {
-    final grades =
-        await _logic.getGrades(_isOfficialSelected);
-    setState(() {
-      _grades = grades;
-    });
+    try {
+      final gradesList = await repository.getGradesWithId(
+        widget.studentUid,
+        _isOfficialSelected,
+      );
+      setState(() {
+        _grades = gradesList
+            .map((gradeData) => gradeData['grade'] as Grade)
+            .toList();
+      });
+    } catch (e) {
+      print('Error loading grades: $e');
+    }
   }
 
   void _updateSelectionState(bool isOfficial) {
@@ -67,20 +81,14 @@ class _GradeTrendScreenState
           _buildSelectionButton(
               '교육청 , 평가원',
               _isOfficialSelected,
-              () => _logic.handleOfficialSelection(
-                  _isOfficialSelected,
-                  _updateSelectionState)),
+              () => _updateSelectionState(true)), // 수정
           const Padding(
             padding: EdgeInsets.symmetric(horizontal: 5),
             child:
                 Text('/', style: TextStyle(fontSize: 20)),
           ),
-          _buildSelectionButton(
-              '사설',
-              !_isOfficialSelected,
-              () => _logic.handlePrivateSelection(
-                  _isOfficialSelected,
-                  _updateSelectionState)),
+          _buildSelectionButton('사설', !_isOfficialSelected,
+              () => _updateSelectionState(false)), // 수정
         ],
       ),
     );
@@ -143,17 +151,6 @@ class _GradeTrendScreenState
                           );
                         },
                       ),
-                      touchCallback: (FlTouchEvent event,
-                          barTouchResponse) {
-                        if (event is FlTapUpEvent &&
-                            barTouchResponse != null &&
-                            barTouchResponse.spot != null) {
-                          int index = barTouchResponse
-                              .spot!.touchedBarGroupIndex;
-                          _showEditDeleteDialog(
-                              context, index);
-                        }
-                      },
                     ),
                     titlesData: FlTitlesData(
                       show: true,
@@ -240,27 +237,5 @@ class _GradeTrendScreenState
       );
     }
     return const SizedBox.shrink();
-  }
-
-  void _showAddGradeDialog(BuildContext context) {
-    _logic.handleAddButtonPressed(
-        context, _isOfficialSelected,
-        onSave: (isValid, errorMessage) {
-      if (isValid) {
-        _loadGrades();
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(errorMessage)));
-      }
-    });
-  }
-
-  void _showEditDeleteDialog(
-      BuildContext context, int index) {
-    _logic
-        .editGrade(context, _isOfficialSelected, index)
-        .then((_) {
-      _loadGrades();
-    });
   }
 }

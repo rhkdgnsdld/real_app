@@ -19,6 +19,7 @@ class _WeeklyAssignmentScreenState
       TextEditingController();
   List<String> _assignments = [];
   String? _connectedStudentId;
+  String? _connectedStudentUid;
 
   // 파스텔 색상 정의
   final Color pastelBlue = Colors.white;
@@ -35,20 +36,166 @@ class _WeeklyAssignmentScreenState
 
   Future<void> _loadConnectedStudent() async {
     final currentUser = FirebaseAuth.instance.currentUser;
+
     if (currentUser != null) {
+      final teacherDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(currentUser.uid)
+          .get();
+
+      final teacherUserId = teacherDoc.data()?['userId'];
+
       final connection = await FirebaseFirestore.instance
           .collection('connections')
-          .where('teacherId', isEqualTo: currentUser.uid)
+          .where('teacherId', isEqualTo: teacherUserId)
           .where('status', isEqualTo: 'accepted')
           .get();
 
       if (connection.docs.isNotEmpty) {
-        setState(() {
-          _connectedStudentId =
-              connection.docs.first.data()['studentId'];
-        });
-        _loadAssignments();
+        final studentId =
+            connection.docs.first.data()['studentId'];
+
+        final studentDocs = await FirebaseFirestore.instance
+            .collection('users')
+            .where('userId', isEqualTo: studentId)
+            .get();
+
+        if (studentDocs.docs.isNotEmpty) {
+          _connectedStudentId = studentId;
+          _connectedStudentUid = studentDocs.docs.first.id;
+          await _loadAssignments();
+        }
       }
+    }
+  }
+
+  Future<void> _loadAssignments() async {
+    if (_connectedStudentUid == null) return;
+
+    final weekKey =
+        DateFormat('yyyy-MM-dd').format(_currentWeek);
+
+    try {
+      // 선생님의 과제 데이터 로드
+      final currentUser = FirebaseAuth.instance.currentUser;
+      final teacherSnapshot = await FirebaseFirestore
+          .instance
+          .collection('users')
+          .doc(currentUser?.uid)
+          .collection('teacher_assignments')
+          .doc(_connectedStudentUid)
+          .collection('weekly')
+          .doc(weekKey)
+          .get();
+
+      if (teacherSnapshot.exists) {
+        setState(() {
+          _assignments = List<String>.from(
+              teacherSnapshot.data()?['assignments'] ?? []);
+        });
+      } else {
+        setState(() {
+          _assignments = [];
+        });
+      }
+    } catch (e) {
+      print('Error loading assignments: $e');
+    }
+  }
+
+  Future<void> _saveAssignments() async {
+    if (_connectedStudentUid == null) return;
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) return;
+
+    final weekKey =
+        DateFormat('yyyy-MM-dd').format(_currentWeek);
+
+    try {
+      // 배치 작업을 위한 WriteBatch 생성
+      final batch = FirebaseFirestore.instance.batch();
+
+      // 1. 선생님의 과제 데이터 저장
+      final teacherAssignmentRef = FirebaseFirestore
+          .instance
+          .collection('users')
+          .doc(currentUser.uid)
+          .collection('teacher_assignments')
+          .doc(_connectedStudentUid)
+          .collection('weekly')
+          .doc(weekKey);
+
+      batch.set(teacherAssignmentRef, {
+        'assignments': _assignments,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      // 2. 학생의 과제 데이터 저장
+      final studentAssignmentRef = FirebaseFirestore
+          .instance
+          .collection('users')
+          .doc(_connectedStudentUid)
+          .collection('assignments')
+          .doc(weekKey);
+
+      batch.set(studentAssignmentRef, {
+        'assignments': _assignments,
+        'completionStatus':
+            List.filled(_assignments.length, false),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      // 배치 작업 실행
+      await batch.commit();
+
+      print('Assignments saved successfully');
+      print('Week: $weekKey');
+      print('Assignments: $_assignments');
+    } catch (e) {
+      print('Error saving assignments: $e');
+    }
+  }
+
+  void _addAssignment() {
+    if (_assignmentController.text.isNotEmpty) {
+      setState(() {
+        _assignments.add(_assignmentController.text);
+        _assignmentController.clear();
+      });
+      _saveAssignments();
+    }
+  }
+
+  void _deleteAssignment(int index) {
+    setState(() {
+      _assignments.removeAt(index);
+    });
+    _saveAssignments();
+  }
+
+  // 과제 완료 상태 확인을 위한 새로운 메서드
+  Future<void> _checkAssignmentStatus() async {
+    if (_connectedStudentUid == null) return;
+
+    final weekKey =
+        DateFormat('yyyy-MM-dd').format(_currentWeek);
+
+    try {
+      final snapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(_connectedStudentUid)
+          .collection('assignments')
+          .doc(weekKey)
+          .get();
+
+      if (snapshot.exists) {
+        final completionStatus = List<bool>.from(
+            snapshot.data()?['completionStatus'] ?? []);
+        // 여기서 완료 상태를 UI에 반영할 수 있습니다
+        // 예: 각 과제 옆에 완료 여부 표시
+      }
+    } catch (e) {
+      print('Error checking assignment status: $e');
     }
   }
 
@@ -73,14 +220,23 @@ class _WeeklyAssignmentScreenState
         backgroundColor: pastelBlue,
         elevation: 0,
       ),
-      body: Column(
-        children: [
-          _buildWeekNavigator(),
-          Expanded(
-            child: _buildAssignmentList(),
-          ),
-          _buildAddAssignmentField(),
-        ],
+      // 여기서 Column을 ResizeToAvoidBottomInset와 SafeArea로 감싸줍니다
+      body: SafeArea(
+        child: Column(
+          children: [
+            _buildWeekNavigator(),
+            Expanded(
+              child: _buildAssignmentList(),
+            ),
+            Padding(
+              padding: EdgeInsets.only(
+                  bottom: MediaQuery.of(context)
+                      .viewInsets
+                      .bottom),
+              child: _buildAddAssignmentField(),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -169,7 +325,8 @@ class _WeeklyAssignmentScreenState
 
   Widget _buildAddAssignmentField() {
     return Container(
-      padding: const EdgeInsets.all(16.0),
+      padding: const EdgeInsets.symmetric(
+          horizontal: 16.0, vertical: 8.0), // 패딩 수정
       decoration: BoxDecoration(
         color: pastelPink,
         borderRadius: const BorderRadius.only(
@@ -178,20 +335,27 @@ class _WeeklyAssignmentScreenState
         ),
       ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center, // 추가
         children: [
           Expanded(
-            child: TextField(
-              controller: _assignmentController,
-              decoration: InputDecoration(
-                hintText: '새로운 과제 입력',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(30),
-                  borderSide: BorderSide.none,
+            child: Container(
+              // TextField를 Container로 감싸서 높이 제한
+              constraints: const BoxConstraints(
+                  maxHeight: 50), // 높이 제한 추가
+              child: TextField(
+                controller: _assignmentController,
+                decoration: InputDecoration(
+                  hintText: '새로운 과제 입력',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(30),
+                    borderSide: BorderSide.none,
+                  ),
+                  filled: true,
+                  fillColor: Colors.white,
+                  contentPadding:
+                      const EdgeInsets.symmetric(
+                          horizontal: 20, vertical: 10),
                 ),
-                filled: true,
-                fillColor: Colors.white,
-                contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 20, vertical: 10),
               ),
             ),
           ),
@@ -227,69 +391,5 @@ class _WeeklyAssignmentScreenState
     DateTime weekEnd =
         weekStart.add(const Duration(days: 6));
     return '${DateFormat('MM월 dd일').format(weekStart)} - ${DateFormat('MM월 dd일').format(weekEnd)}';
-  }
-
-  void _loadAssignments() async {
-    if (_connectedStudentId == null) return;
-
-    final weekKey =
-        DateFormat('yyyy-MM-dd').format(_currentWeek);
-    final snapshot = await FirebaseFirestore.instance
-        .collection('users')
-        .doc(_connectedStudentId)
-        .collection('assignments')
-        .doc(weekKey)
-        .get();
-
-    if (snapshot.exists) {
-      setState(() {
-        _assignments = List<String>.from(
-            snapshot.data()?['assignments'] ?? []);
-      });
-    } else {
-      setState(() {
-        _assignments = [];
-      });
-    }
-  }
-
-  void _saveAssignments() async {
-    if (_connectedStudentId == null) return;
-
-    final weekKey =
-        DateFormat('yyyy-MM-dd').format(_currentWeek);
-    await FirebaseFirestore.instance
-        .collection('users')
-        .doc(_connectedStudentId)
-        .collection('assignments')
-        .doc(weekKey)
-        .set({
-      'assignments': _assignments,
-      'updatedAt': FieldValue.serverTimestamp(),
-    });
-  }
-
-  void _addAssignment() {
-    if (_assignmentController.text.isNotEmpty) {
-      setState(() {
-        _assignments.add(_assignmentController.text);
-        _saveAssignments();
-
-        // 디버그 콘솔 출력
-        print('과제 추가 시간: ${DateTime.now()}');
-        print('추가된 과제: ${_assignmentController.text}');
-        print(
-            '현재 선택된 주: ${_getWeekRangeText(_currentWeek)}');
-
-        _assignmentController.clear();
-      });
-    }
-  }
-
-  void _deleteAssignment(int index) {
-    setState(() {
-      _assignments.removeAt(index);
-      _saveAssignments();
-    });
   }
 }
