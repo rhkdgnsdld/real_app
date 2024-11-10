@@ -338,27 +338,44 @@ class _HomeScreenState extends State<HomeScreen> {
                                   .get();
 
                           if (connections.docs.isNotEmpty) {
-                            // 첫 번째 연결된 학생의 ID 가져오기
-                            final studentId = connections
-                                .docs.first
-                                .data()['studentId'];
+                            // 학생 문서 가져오기
+                            final studentQuery =
+                                await FirebaseFirestore
+                                    .instance
+                                    .collection('users')
+                                    .where('userId',
+                                        isEqualTo: connections
+                                                .docs.first
+                                                .data()[
+                                            'studentId'])
+                                    .get();
 
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) =>
-                                    GradeTrendScreenT(
-                                        studentUid:
-                                            studentId),
-                              ),
-                            );
+                            if (studentQuery
+                                .docs.isNotEmpty) {
+                              final studentUid = studentQuery
+                                  .docs
+                                  .first
+                                  .id; // 실제 Firestore 문서 ID
+
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) =>
+                                      GradeTrendScreenT(
+                                    studentUid:
+                                        studentUid, // 올바른 studentUid 전달
+                                  ),
+                                ),
+                              );
+                            }
                           } else {
                             // 연결된 학생이 없는 경우
                             ScaffoldMessenger.of(context)
                                 .showSnackBar(
                               const SnackBar(
-                                  content: Text(
-                                      '연결된 학생이 없습니다.')),
+                                content:
+                                    Text('연결된 학생이 없습니다.'),
+                              ),
                             );
                           }
                         }

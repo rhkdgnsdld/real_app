@@ -138,19 +138,7 @@ class _GradeTrendScreenState
                     minY: 0,
                     groupsSpace: 30,
                     barTouchData: BarTouchData(
-                      enabled: true,
-                      touchTooltipData: BarTouchTooltipData(
-                        getTooltipItem: (group, groupIndex,
-                            rod, rodIndex) {
-                          return BarTooltipItem(
-                            rod.toY.round().toString(),
-                            const TextStyle(
-                                color: Colors.white,
-                                fontWeight:
-                                    FontWeight.bold),
-                          );
-                        },
-                      ),
+                      enabled: false,
                     ),
                     titlesData: FlTitlesData(
                       show: true,
