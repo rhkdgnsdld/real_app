@@ -68,7 +68,7 @@ class ProfileScreenState
         children: [
           Container(
             padding: const EdgeInsets.all(16.0),
-            color: Colors.blue,
+            color: const Color(0xFF5BABEF),
             child: const SafeArea(
               bottom: false,
               child: Align(
@@ -154,8 +154,9 @@ class ProfileScreenState
                                   isEqualTo: 'accepted')
                               .snapshots(),
                           builder: (context, snapshot) {
-                            if (!snapshot.hasData)
+                            if (!snapshot.hasData) {
                               return Container();
+                            }
 
                             final connections =
                                 snapshot.data!.docs;

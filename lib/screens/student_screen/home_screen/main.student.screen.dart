@@ -24,7 +24,7 @@ class _MainStudentScreenState
 
   final List<Widget> _children = [
     const HomeScreen(),
-    WeeklyScheduleScreenS(),
+    const WeeklyScheduleScreenS(),
     const StudentprofileScreen(),
   ];
 
@@ -89,7 +89,7 @@ class _HomeScreenState extends State<HomeScreen> {
       children: <Widget>[
         Container(
           padding: const EdgeInsets.all(16.0),
-          color: Colors.blue,
+          color: const Color(0xFF36D19D),
           child: SafeArea(
             bottom: false,
             child: Row(
@@ -136,6 +136,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           child: CustomButton(
                               text: '이번주의 과제',
                               icon: Icons.assignment,
+                              iconColor: Color(0xFF36D19D),
                               screen:
                                   StudentWeeklyAssignmentScreen())),
                       SizedBox(width: 16),
@@ -143,6 +144,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           child: CustomButton(
                               text: '출결 확인하기',
                               icon: Icons.check_circle,
+                              iconColor: Color(0xFF36D19D),
                               screen: AttendanceScreenS())),
                     ],
                   ),
@@ -155,6 +157,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           child: CustomButton(
                               text: '수업 자료 확인하기',
                               icon: Icons.book,
+                              iconColor: Color(0xFF36D19D),
                               screen:
                                   StudentFileListScreen())),
                       SizedBox(width: 16),
@@ -162,7 +165,8 @@ class _HomeScreenState extends State<HomeScreen> {
                           child: CustomButton(
                               text: '선생님과의 대화',
                               icon: Icons.chat,
-                              screen: ChatScreen())),
+                              iconColor: Color(0xFF36D19D),
+                              screen: StudentChatScreen())),
                     ],
                   ),
                 ),
@@ -171,6 +175,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: WideButton(
                       text: '성적 누적 추이 확인',
                       icon: Icons.trending_up,
+                      iconColor: Color(0xFF36D19D),
                       screen: GradeTrendScreen()),
                 ),
               ],

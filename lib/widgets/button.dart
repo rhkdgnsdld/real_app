@@ -4,12 +4,15 @@ class CustomButton extends StatelessWidget {
   final String text;
   final IconData icon;
   final Widget screen;
+  final Color iconColor;
 
-  const CustomButton(
-      {super.key,
-      required this.text,
-      required this.icon,
-      required this.screen});
+  const CustomButton({
+    super.key,
+    required this.text,
+    required this.icon,
+    required this.screen,
+    this.iconColor = Colors.blue,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -36,7 +39,7 @@ class CustomButton extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, size: 48, color: Colors.blue),
+            Icon(icon, size: 48, color: iconColor),
             const SizedBox(height: 8),
             Text(
               text,
@@ -54,12 +57,14 @@ class WideButton extends StatelessWidget {
   final String text;
   final IconData icon;
   final Widget screen;
+  final Color iconColor;
 
   const WideButton(
       {super.key,
       required this.text,
       required this.icon,
-      required this.screen});
+      required this.screen,
+      this.iconColor = Colors.blue});
 
   @override
   Widget build(BuildContext context) {
@@ -91,7 +96,7 @@ class WideButton extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(icon, size: 40, color: Colors.blue),
+              Icon(icon, size: 40, color: iconColor),
               const SizedBox(width: 16),
               Text(
                 text,

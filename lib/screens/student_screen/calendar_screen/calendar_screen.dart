@@ -141,7 +141,7 @@ class _WeeklyScheduleScreenState
   Widget buildHeader() {
     return Container(
       padding: const EdgeInsets.all(16.0),
-      color: Colors.blue,
+      color: const Color(0xFF36D19D),
       child: SafeArea(
         bottom: false,
         child: Row(

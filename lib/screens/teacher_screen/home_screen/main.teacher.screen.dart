@@ -232,7 +232,7 @@ class _HomeScreenState extends State<HomeScreen> {
       children: <Widget>[
         Container(
           padding: const EdgeInsets.all(16.0),
-          color: Colors.blue,
+          color: const Color(0xFF5BABEF),
           child: SafeArea(
             bottom: false,
             child: Row(
@@ -271,6 +271,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         child: CustomButton(
                           text: '과제 부여하기',
                           icon: Icons.assignment,
+                          iconColor: Color(0xFF5BABEF),
                           screen: WeeklyAssignmentScreen(),
                         ),
                       ),
@@ -279,6 +280,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         child: CustomButton(
                           text: '출결 확인하기',
                           icon: Icons.check_circle,
+                          iconColor: Color(0xFF5BABEF),
                           screen: AttendanceScreenT(),
                         ),
                       ),
@@ -293,6 +295,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         child: CustomButton(
                           text: '수업 자료 업로드하기',
                           icon: Icons.book,
+                          iconColor: Color(0xFF5BABEF),
                           screen: TeacherFileUploadScreen(),
                         ),
                       ),
@@ -301,7 +304,8 @@ class _HomeScreenState extends State<HomeScreen> {
                         child: CustomButton(
                           text: '학생과의 대화',
                           icon: Icons.chat,
-                          screen: ChatScreen(),
+                          iconColor: Color(0xFF5BABEF),
+                          screen: TeacherChatScreen(),
                         ),
                       ),
                     ],
@@ -384,8 +388,11 @@ class _HomeScreenState extends State<HomeScreen> {
                         mainAxisAlignment:
                             MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.trending_up,
-                              size: 48, color: Colors.blue),
+                          Icon(
+                            Icons.trending_up,
+                            size: 48,
+                            color: Color(0xFF5BABEF),
+                          ),
                           SizedBox(height: 8),
                           Text(
                             '성적 누적 추이 확인',

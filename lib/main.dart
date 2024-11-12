@@ -6,16 +6,33 @@ import 'package:new_new_app/screens/student_screen/home_screen/main.student.scre
 import 'package:new_new_app/screens/teacher_screen/home_screen/main.teacher.screen.dart';
 
 import 'firebase_options.dart';
-import 'package:new_new_app/screens/login.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await initializeDateFormatting('ko_KR', null);
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
-  WidgetsFlutterBinding.ensureInitialized();
+
+  try {
+    // Firebase 초기화 및 정보 출력
+    final app = await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+    print('Firebase initialized');
+    print('Project ID: ${app.options.projectId}');
+    print('Storage Bucket: ${app.options.storageBucket}');
+
+    // Storage 인스턴스 확인
+    final storage = FirebaseStorage.instance;
+    print('Storage instance created');
+    print('Storage bucket: ${storage.bucket}');
+
+    // 날짜 형식 초기화
+    await initializeDateFormatting('ko_KR', null);
+    print('Date formatting initialized');
+  } catch (e) {
+    print('Initialization error: $e');
+  }
+
   runApp(const MyApp());
 }
 
@@ -31,7 +48,7 @@ class MyApp extends StatelessWidget {
         visualDensity:
             VisualDensity.adaptivePlatformDensity,
       ),
-      initialRoute: '/login', // 시작 화면
+      initialRoute: '/login',
       routes: {
         '/login': (context) => const LoginScreenR(),
         '/signup': (context) => const SignUpPage(),
