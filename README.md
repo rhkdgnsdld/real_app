@@ -1,8 +1,5 @@
-# new_new_app
-
-A new Flutter project.
-
-## Getting Started
+# 학생관리앱 Hi Class!
+## 바라미 프로젝트
 
 This project is a starting point for a Flutter application.
 
