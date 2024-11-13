@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:new_new_app/screens/login.dart';
 import 'package:new_new_app/screens/login.screen.dart';
 
 class SignUpPage extends StatefulWidget {
@@ -18,141 +17,213 @@ class _SignUpPageState extends State<SignUpPage> {
   final _nameController = TextEditingController();
   final _phoneController = TextEditingController();
   String? selectedJob;
+  bool isLoading = false;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('회원가입'),
-        backgroundColor: Colors.blue,
-      ),
-      body: SingleChildScrollView(
-        // 키보드가 올라와도 스크롤 가능하게
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            const SizedBox(height: 20),
-            TextField(
-              controller: _idController,
-              decoration: const InputDecoration(
-                labelText: '아이디',
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.person),
-              ),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _passwordController,
-              decoration: const InputDecoration(
-                labelText: '비밀번호',
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.lock),
-              ),
-              obscureText: true, // 비밀번호 숨기기
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _nameController,
-              decoration: const InputDecoration(
-                labelText: '이름',
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.badge),
-              ),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _phoneController,
-              decoration: const InputDecoration(
-                labelText: '전화번호',
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.phone),
-              ),
-              keyboardType: TextInputType.phone, // 전화번호 키패드
-            ),
-            const SizedBox(height: 16),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  '직업을 선택해주세요',
-                  style: TextStyle(fontSize: 16),
+      backgroundColor: Colors.white,
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+              horizontal: 24.0, vertical: 16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: 50),
+              const Text(
+                '반갑습니다 👋',
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
                 ),
-                const SizedBox(height: 8),
-                Row(
+              ),
+              const SizedBox(height: 8),
+              Text(
+                '필요한 정보를 입력해주세요',
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Colors.grey[600],
+                ),
+              ),
+              const SizedBox(height: 32),
+
+              // 입력 필드들
+              _buildTextField(
+                controller: _idController,
+                label: '아이디',
+                icon: Icons.person_outline_rounded,
+              ),
+              const SizedBox(height: 16),
+              _buildTextField(
+                controller: _passwordController,
+                label: '비밀번호',
+                icon: Icons.lock_outline_rounded,
+                isPassword: true,
+              ),
+              const SizedBox(height: 16),
+              _buildTextField(
+                controller: _nameController,
+                label: '이름',
+                icon: Icons.badge_outlined,
+              ),
+              const SizedBox(height: 16),
+              _buildTextField(
+                controller: _phoneController,
+                label: '전화번호',
+                icon: Icons.phone_outlined,
+                keyboardType: TextInputType.phone,
+              ),
+              const SizedBox(height: 24),
+
+              // 직업 선택 섹션
+              const Text(
+                '직업',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black87,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(16),
+                  color: Colors.grey[50],
+                  border:
+                      Border.all(color: Colors.grey[200]!),
+                ),
+                child: Column(
                   children: [
-                    Radio<String>(
-                      value: '학생',
-                      groupValue: selectedJob,
-                      onChanged: (String? value) {
-                        setState(() {
-                          selectedJob = value;
-                        });
-                      },
-                    ),
-                    const Text('학생'),
+                    _buildJobOption('학생'),
+                    Divider(
+                        height: 1, color: Colors.grey[200]),
+                    _buildJobOption('선생님'),
                   ],
                 ),
-                Row(
-                  children: [
-                    Radio<String>(
-                      value: '선생님',
-                      groupValue: selectedJob,
-                      onChanged: (String? value) {
-                        setState(() {
-                          selectedJob = value;
-                        });
-                      },
+              ),
+              const Spacer(),
+
+              // 회원가입 버튼
+              SizedBox(
+                width: double.infinity,
+                height: 52,
+                child: ElevatedButton(
+                  onPressed: () => _signUp(),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius:
+                          BorderRadius.circular(16),
                     ),
-                    const Text('선생님'),
-                  ],
+                  ),
+                  child: isLoading
+                      ? const SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
+                        )
+                      : const Text(
+                          '회원가입',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                 ),
-              ],
-            ),
-            const SizedBox(height: 30),
-            ElevatedButton(
-              onPressed: () => _signUp(),
-              style: ElevatedButton.styleFrom(
-                minimumSize: const Size(
-                    double.infinity, 50), // 버튼 크기
-                backgroundColor: Colors.blue,
               ),
-              child: const Text(
-                '회원가입',
-                style: TextStyle(fontSize: 16),
-              ),
-            ),
-          ],
+              const SizedBox(height: 16),
+            ],
+          ),
         ),
       ),
     );
   }
 
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String label,
+    required IconData icon,
+    bool isPassword = false,
+    TextInputType? keyboardType,
+  }) {
+    return Container(
+      height: 52, // 높이 줄임
+      decoration: BoxDecoration(
+        color: Colors.grey[50],
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey[200]!),
+      ),
+      child: TextField(
+        controller: controller,
+        obscureText: isPassword,
+        keyboardType: keyboardType,
+        style: const TextStyle(fontSize: 15),
+        decoration: InputDecoration(
+          labelText: label,
+          labelStyle: TextStyle(
+            color: Colors.grey[600],
+            fontSize: 14,
+          ),
+          prefixIcon:
+              Icon(icon, color: Colors.grey[400], size: 20),
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16, vertical: 8),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildJobOption(String job) {
+    return RadioListTile<String>(
+      title: Text(
+        job,
+        style: const TextStyle(
+          fontSize: 15,
+          color: Colors.black87,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+      value: job,
+      groupValue: selectedJob,
+      onChanged: (value) =>
+          setState(() => selectedJob = value),
+      activeColor: Colors.blue,
+      contentPadding:
+          const EdgeInsets.symmetric(horizontal: 12),
+      visualDensity: VisualDensity.compact, // 라디오 버튼 간격 줄임
+    );
+  }
+
   Future<void> _signUp() async {
+    setState(() => isLoading = true);
+
     try {
-      // 입력값 검증 추가
       if (_idController.text.isEmpty ||
           _passwordController.text.isEmpty ||
           _nameController.text.isEmpty ||
-          _phoneController.text.isEmpty) {
+          _phoneController.text.isEmpty ||
+          selectedJob == null) {
         throw '모든 필드를 입력해주세요';
       }
 
-      // 비밀번호 길이 검증
       if (_passwordController.text.length < 6) {
         throw '비밀번호는 최소 6자리 이상이어야 합니다';
       }
 
-      // Firebase Auth로 계정 생성
-      print(
-          '회원가입 시도: ${_idController.text}@example.com'); // 로그 추가
       final credential = await FirebaseAuth.instance
           .createUserWithEmailAndPassword(
         email: "${_idController.text}@example.com",
         password: _passwordController.text,
       );
 
-      print('Auth 성공, Firestore 저장 시도'); // 로그 추가
-      // Firestore에 사용자 정보 저장
       await FirebaseFirestore.instance
           .collection('users')
           .doc(credential.user!.uid)
@@ -164,42 +235,49 @@ class _SignUpPageState extends State<SignUpPage> {
         'createdAt': FieldValue.serverTimestamp(),
       });
 
-      print('Firestore 저장 성공'); // 로그 추가
-      // 성공 메시지
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('회원가입이 완료되었습니다!')),
+        SnackBar(
+          content: const Text('회원가입이 완료되었습니다!'),
+          backgroundColor: Colors.green,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10)),
+          margin: const EdgeInsets.all(20),
+        ),
       );
 
-      // 로그인 페이지나 홈 화면으로 이동
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
             builder: (context) => const LoginScreenR()),
       );
     } catch (e) {
-      print('회원가입 실패 에러: $e'); // 구체적인 에러 로그
-      // 에러 메시지 더 자세히 표시
       String errorMessage = '회원가입 실패: ';
-
       if (e.toString().contains('email-already-in-use')) {
         errorMessage += '이미 사용중인 아이디입니다.';
       } else if (e.toString().contains('weak-password')) {
         errorMessage += '비밀번호가 너무 약합니다.';
-      } else if (e.toString().contains('invalid-email')) {
-        errorMessage += '잘못된 이메일 형식입니다.';
       } else {
         errorMessage += e.toString();
       }
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(errorMessage)),
+        SnackBar(
+          content: Text(errorMessage),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10)),
+          margin: const EdgeInsets.all(20),
+        ),
       );
+    } finally {
+      setState(() => isLoading = false);
     }
   }
 
   @override
   void dispose() {
-    // 컨트롤러 해제
     _idController.dispose();
     _passwordController.dispose();
     _nameController.dispose();
